@@ -54,27 +54,45 @@
     <!-- Drawing Screen -->
     <div id="drawing-screen" class="screen">
         <div id="top-bar">
-            <div class="color-picker" id="color-picker">
-                <div class="color-option selected" style="background-color: #000000;" data-color="#000000"></div>
-                <div class="color-option" style="background-color: #FF0000;" data-color="#FF0000"></div>
-                <div class="color-option" style="background-color: #00FF00;" data-color="#00FF00"></div>
-                <div class="color-option" style="background-color: #0000FF;" data-color="#0000FF"></div>
-                <div class="color-option" style="background-color: #FFFF00;" data-color="#FFFF00"></div>
-                <div class="color-option" style="background-color: #FFA500;" data-color="#FFA500"></div>
-                <div class="color-option" style="background-color: #FF00FF;" data-color="#FF00FF"></div>
+            <div id="game-info-bar">
+                <div id="room-info">Code: <span id="game-room-code"></span></div>
+                <div id="players-list"></div>
             </div>
-            <div class="tools" id="tools-container">
-                <button id="eraser-btn">Eraser</button>
-                <button id="clear-btn">Clear</button>
-            </div>
-        </div>
 
-        <div id="spectator-overlay">
-            <div class="overlay-content">
-                <h2>Spectating</h2>
-                <p>Watch your friend draw!</p>
-                <button id="my-turn-btn">My Turn!</button>
+            <div id="drawing-tools" class="tools-container">
+                <!-- Color Picker -->
+                <div class="tool-group">
+                    <div class="color-wrapper">
+                        <button id="current-color-btn" class="tool-btn color-btn"></button>
+                        <div id="color-palette" class="palette hidden">
+                            <div class="color-option" style="background-color: #000000;" data-color="#000000"></div>
+                            <div class="color-option" style="background-color: #FF0000;" data-color="#FF0000"></div>
+                            <div class="color-option" style="background-color: #00FF00;" data-color="#00FF00"></div>
+                            <div class="color-option" style="background-color: #0000FF;" data-color="#0000FF"></div>
+                            <div class="color-option" style="background-color: #FFFF00;" data-color="#FFFF00"></div>
+                            <div class="color-option" style="background-color: #FFA500;" data-color="#FFA500"></div>
+                            <div class="color-option" style="background-color: #FF00FF;" data-color="#FF00FF"></div>
+                            <div class="color-option" style="background-color: #FFFFFF;" data-color="#FFFFFF"></div>
+                            <!-- White for manual eraser if needed -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Size Slider -->
+                <div class="tool-group">
+                    <input type="range" id="brush-size" min="1" max="30" value="5" title="Brush Size">
+                </div>
+
+                <!-- Actions -->
+                <div class="tool-group">
+                    <button id="undo-btn" class="tool-btn" title="Undo">↩</button>
+                    <button id="redo-btn" class="tool-btn" title="Redo">↪</button>
+                    <button id="eraser-btn" class="tool-btn" title="Eraser">⌫</button>
+                    <button id="clear-btn" class="tool-btn" title="Clear All">🗑</button>
+                </div>
             </div>
+
+            <button id="my-turn-btn" style="display: none;">My Turn</button>
         </div>
 
         <canvas id="drawing-canvas"></canvas>

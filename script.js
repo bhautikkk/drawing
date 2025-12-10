@@ -18,17 +18,29 @@ const errorMsg = document.getElementById('menu-error');
 // Game UI
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
-const colorOptions = document.querySelectorAll('.color-option');
+// const colorOptions = document.querySelectorAll('.color-option'); // Moved below
 const clearBtn = document.getElementById('clear-btn');
 const eraserBtn = document.getElementById('eraser-btn');
 const topBar = document.getElementById('top-bar');
-const spectatorOverlay = document.getElementById('spectator-overlay');
+// const spectatorOverlay = document.getElementById('spectator-overlay'); // Removed
 const myTurnBtn = document.getElementById('my-turn-btn');
+
+// New Toolbar Elements
+const currentColorBtn = document.getElementById('current-color-btn');
+const colorPalette = document.getElementById('color-palette');
+const brushSizeInput = document.getElementById('brush-size');
+const undoBtn = document.getElementById('undo-btn');
+const redoBtn = document.getElementById('redo-btn');
+// Re-select color options as they are in new container
+const colorOptions = document.querySelectorAll('.color-option');
+const toolsContainer = document.getElementById('drawing-tools');
 
 // Modal Elements
 const turnModal = document.getElementById('turn-modal');
 const acceptTurnBtn = document.getElementById('accept-turn-btn');
 const rejectTurnBtn = document.getElementById('reject-turn-btn');
+const gameRoomCode = document.getElementById('game-room-code');
+const playersListContainer = document.getElementById('players-list');
 
 // State
 let isDrawing = false;
@@ -36,8 +48,11 @@ let isMyTurn = false;
 let currentColor = '#000000';
 let currentLineWidth = 5;
 let lastX = 0;
-let lastY = 0;
 let myRoomId = null;
+let currentPlayers = []; // Store players list
+let strokeHistory = []; // Array of {type, color, width, path: [{x, y}, ...]}
+let redoStack = [];
+let currentPath = []; // Temp storage for current stroke path
 
 // --- Event Listeners: Main Menu ---
 
@@ -99,13 +114,23 @@ socket.on('game_started', (data) => {
     showScreen(drawingScreen);
     resizeCanvas();
     updateRole(data.drawerId);
+
+    // Update game info
+    gameRoomCode.textContent = myRoomId;
+    renderPlayerList(data.players, data.drawerId);
 });
 
 socket.on('game_state', (data) => {
     showScreen(drawingScreen);
     resizeCanvas();
     updateRole(data.drawerId);
+
+    // Update game info
+    gameRoomCode.textContent = myRoomId;
+    renderPlayerList(data.players, data.drawerId);
 });
+
+// --- Role Management ---
 
 // --- Role Management ---
 
@@ -113,15 +138,47 @@ function updateRole(drawerId) {
     if (socket.id === drawerId) {
         // I am the drawer
         isMyTurn = true;
-        spectatorOverlay.classList.remove('active');
+        // spectatorOverlay.classList.remove('active'); // Removed overlay
         topBar.style.pointerEvents = 'auto';
-        alert("Your Turn to Draw!");
+
+        // Show drawing tools, hide "My Turn" button
+        if (toolsContainer) toolsContainer.style.display = 'flex';
+        myTurnBtn.style.display = 'none';
+
+        // alert("Your Turn to Draw!"); // Removed alert
     } else {
         // I am a spectator
         isMyTurn = false;
-        spectatorOverlay.classList.add('active');
-        topBar.style.pointerEvents = 'none'; // Disable tools for spectator
+        // spectatorOverlay.classList.add('active'); // Removed overlay
+        // topBar.style.pointerEvents = 'none'; // Don't disable all events, we need the button!
+
+        // Hide drawing tools, show "My Turn" button
+        if (toolsContainer) toolsContainer.style.display = 'none';
+        myTurnBtn.style.display = 'inline-block';
     }
+}
+
+function renderPlayerList(players, currentDrawerId) {
+    if (!players) return;
+    currentPlayers = players; // Update global state
+    playersListContainer.innerHTML = ''; // Clear list
+    players.forEach(player => {
+        const playerItem = document.createElement('div');
+        playerItem.classList.add('player-item');
+        if (player.id === currentDrawerId) {
+            playerItem.classList.add('drawer');
+        }
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = player.name;
+
+        const brushIcon = document.createElement('div');
+        brushIcon.classList.add('brush-icon');
+
+        playerItem.appendChild(nameSpan);
+        playerItem.appendChild(brushIcon);
+        playersListContainer.appendChild(playerItem);
+    });
 }
 
 // --- Turn Management ---
@@ -167,6 +224,23 @@ socket.on('turn_change', (data) => {
     // Reset button state if previously disabled
     myTurnBtn.textContent = "My Turn!";
     myTurnBtn.disabled = false;
+
+    // Update player list visuals (we might not have the full list here, but we can assume list unchanged)
+    // Actually, we need to update the indicators. The simplest way relies on finding the elements.
+    // Or we could request state update, but better to just toggle classes if we can.
+    // However, recreating is safest if we had the list. 
+    // Since we don't receive the list in turn_change, we can iterate DOM elements.
+    // BUT we don't have IDs on elements. Let's rely on finding by text? No, names can be diff.
+    // Best: Server should probably just send the list again or we store it locally.
+    // Quick fix: Update styles based on "drawerId" comparison if we stored players?
+    // Let's modify render loop or just re-request state? 
+    // Actually, let's just highlight the new drawer based on the logic we can infer?
+    // Wait, the client doesn't persist the players list variable globally.
+    // I should fix that. I'll make `currentPlayers` a global.
+
+    if (currentPlayers) {
+        renderPlayerList(currentPlayers, data.drawerId);
+    }
 });
 
 socket.on('turn_rejected', () => {
@@ -189,20 +263,62 @@ function resizeCanvas() {
 
 window.addEventListener('resize', resizeCanvas);
 
+// --- Drawing Tools Logic ---
+
+// Size Slider
+brushSizeInput.addEventListener('input', (e) => {
+    currentLineWidth = e.target.value;
+});
+
+// Color Picker Toggle
+currentColorBtn.style.backgroundColor = currentColor; // Init bg
+currentColorBtn.addEventListener('click', () => {
+    if (!isMyTurn) return;
+    colorPalette.classList.toggle('hidden');
+});
+
 // Color Selection
 colorOptions.forEach(option => {
-    option.addEventListener('click', () => {
-        if (!isMyTurn) return;
+    option.addEventListener('click', (e) => {
+        if (!isMyTurn) return; // Should be blocked by UI but safety check
+        e.stopPropagation(); // Prevent closing immediately if bubbled? No, usually fine.
 
-        colorOptions.forEach(opt => opt.classList.remove('selected'));
-        eraserBtn.style.border = 'none';
+        const color = option.dataset.color;
 
-        option.classList.add('selected');
-        currentColor = option.dataset.color;
-        currentLineWidth = 5;
+        // Handle White (Eraser logic via color, or just color)
+        // If color is white, effectively eraser if we assume white bg.
+        // But user has separate eraser button. 
+        // Let's just treat standard color selection.
+
+        currentColor = color;
+        currentColorBtn.style.backgroundColor = color;
+        colorPalette.classList.add('hidden'); // Close palette
+
+        // Reset Eraser style
+        eraserBtn.classList.remove('active');
 
         updateContext();
     });
+});
+
+// Close palette if clicked outside
+document.addEventListener('click', (e) => {
+    if (!currentColorBtn.contains(e.target) && !colorPalette.contains(e.target)) {
+        colorPalette.classList.add('hidden');
+    }
+});
+
+// Eraser
+eraserBtn.addEventListener('click', () => {
+    if (!isMyTurn) return;
+    currentColor = '#FFFFFF';
+    currentLineWidth = 20; // Default eraser size, but slider overrides next movement?
+    // Let's set slider to 20?
+    brushSizeInput.value = 20;
+
+    // Highlight eraser
+    eraserBtn.classList.add('active');
+    updateContext();
 });
 
 function updateContext() {
@@ -210,20 +326,104 @@ function updateContext() {
     ctx.lineWidth = currentLineWidth;
 }
 
-eraserBtn.addEventListener('click', () => {
-    if (!isMyTurn) return;
-    colorOptions.forEach(opt => opt.classList.remove('selected'));
-    eraserBtn.style.border = '2px solid #333';
-    currentColor = '#FFFFFF';
-    currentLineWidth = 20;
-    updateContext();
-});
-
 clearBtn.addEventListener('click', () => {
     if (!isMyTurn) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    strokeHistory = []; // Clear history
+    redoStack = [];
     socket.emit('clear');
 });
+
+// Undo
+undoBtn.addEventListener('click', () => {
+    if (!isMyTurn || strokeHistory.length === 0) return;
+
+    // Pop last stroke
+    const lastStroke = strokeHistory.pop();
+    redoStack.push(lastStroke);
+
+    // Redraw
+    redrawCanvas();
+});
+
+// Redo
+redoBtn.addEventListener('click', () => {
+    if (!isMyTurn || redoStack.length === 0) return;
+
+    // Pop from redo
+    const stroke = redoStack.pop();
+    strokeHistory.push(stroke);
+
+    // Redraw
+    redrawCanvas();
+});
+
+function redrawCanvas() {
+    // 1. Clear Local
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 2. Clear Remote (Network efficient? No, but required)
+    socket.emit('clear');
+
+    // 3. Replay History
+    strokeHistory.forEach(stroke => {
+        // Draw Local
+        drawStrokeLocally(stroke);
+
+        // Emit to Network (We need to re-emit the whole path? Or just 'start' and 'end'?)
+        // To be safe and simple: specific 'batch_draw' event would be best, but we only have 'draw'
+        // Emitting hundreds of drag events is BAD.
+        // Let's emit a simplified path?
+        // Wait, standard 'draw' event logic handles 'start' -> 'drag' -> 'end'. 
+        // We can just emit that sequence.
+
+        // Optimization: Create a 'stroke' event listener on server? 
+        // No server changes allowed ideally.
+        // We have to use existing events.
+        // Event types: 'start', 'drag', 'end'.
+
+        if (stroke.path.length > 0) {
+            // Start
+            socket.emit('draw', {
+                type: 'start',
+                x: stroke.path[0].x,
+                y: stroke.path[0].y,
+                color: stroke.color,
+                width: stroke.width
+            });
+
+            // Drag (Skip some points to save bandwidth?)
+            for (let i = 1; i < stroke.path.length; i++) {
+                socket.emit('draw', {
+                    type: 'drag',
+                    x: stroke.path[i].x,
+                    y: stroke.path[i].y,
+                    prevX: stroke.path[i - 1].x,
+                    prevY: stroke.path[i - 1].y
+                });
+            }
+
+            // End
+            socket.emit('draw', { type: 'end' });
+        }
+    });
+}
+
+function drawStrokeLocally(stroke) {
+    if (stroke.path.length < 1) return;
+
+    ctx.beginPath();
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.moveTo(stroke.path[0].x, stroke.path[0].y);
+    for (let i = 1; i < stroke.path.length; i++) {
+        ctx.lineTo(stroke.path[i].x, stroke.path[i].y);
+    }
+    ctx.stroke();
+}
 
 // Input Handling
 function getCoordinates(e) {
@@ -247,13 +447,17 @@ function startDrawing(e) {
     lastX = coords.x;
     lastY = coords.y;
 
+    // Start Recording
+    currentPath = [{ x: coords.x, y: coords.y }];
+    redoStack = []; // Clear redo on new action
+
     socket.emit('draw', {
         type: 'start',
         x: coords.x,
         y: coords.y,
         color: currentColor,
         width: currentLineWidth,
-        w: canvas.width, // Send canvas dimensions to normalize relative scaling if needed (skipping for now)
+        w: canvas.width,
         h: canvas.height
     });
 }
@@ -268,6 +472,10 @@ function draw(e) {
     ctx.moveTo(lastX, lastY);
     ctx.lineTo(coords.x, coords.y);
     ctx.stroke();
+
+    // Record
+    // Store only if moved significance? No, straight lines are fine.
+    currentPath.push({ x: coords.x, y: coords.y });
 
     socket.emit('draw', {
         type: 'drag',
@@ -284,8 +492,18 @@ function draw(e) {
 function stopDrawing() {
     if (isDrawing && isMyTurn) {
         socket.emit('draw', { type: 'end' });
+
+        // Save Stroke
+        if (currentPath.length > 0) {
+            strokeHistory.push({
+                color: currentColor,
+                width: currentLineWidth,
+                path: currentPath
+            });
+        }
     }
     isDrawing = false;
+    currentPath = [];
     ctx.beginPath();
 }
 

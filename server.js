@@ -59,7 +59,8 @@ io.on('connection', (socket) => {
                     // Send current state
                     socket.emit('game_state', {
                         isDrawer: false,
-                        drawerId: room.players[room.drawerIndex].id
+                        drawerId: room.players[room.drawerIndex].id,
+                        players: room.players // Send list of players
                     });
                 }
             } else {
@@ -78,7 +79,8 @@ io.on('connection', (socket) => {
         const drawer = room.players[room.drawerIndex];
 
         io.to(roomId).emit('game_started', {
-            drawerId: drawer.id
+            drawerId: drawer.id,
+            players: room.players // Send list of players
         });
 
         console.log(`Game started in ${roomId}, drawer: ${drawer.name}`);
