@@ -363,6 +363,7 @@ html {
 /* Range Input (Slider) */
 input[type=range] {
     -webkit-appearance: none;
+    appearance: none;
     width: 100px;
     height: 6px;
     background: #ccc;
@@ -410,4 +411,110 @@ input[type=range]::-webkit-slider-thumb {
     touch-action: none;
     /* Critical for mobile drawing */
     cursor: crosshair;
+}
+
+/* Mobile Responsiveness */
+@media screen and (max-width: 768px) {
+    .menu-content h1 {
+        font-size: 2rem;
+    }
+
+    .create-section,
+    .join-section {
+        padding: 15px;
+        max-width: 90%;
+    }
+
+    #room-code-input {
+        width: 120px;
+    }
+
+    #top-bar {
+        height: auto;
+        padding: 5px;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    #game-info-bar {
+        flex-direction: row;
+        gap: 10px;
+        width: 100%;
+        justify-content: space-between;
+        margin-right: 0;
+        margin-bottom: 5px;
+        font-size: 0.8rem;
+    }
+
+    #drawing-tools {
+        width: 100%;
+        overflow-x: auto;
+        padding: 5px 10px;
+        gap: 10px;
+        /* Hide scrollbar but allow scroll */
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    #drawing-tools::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tool-group {
+        padding-right: 10px;
+        gap: 5px;
+    }
+
+    .tool-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    input[type=range] {
+        width: 80px;
+    }
+
+    /* Make palette pop downward or aligned better on mobile */
+    .palette {
+        top: 40px;
+        left: -50px;
+        /* Shift left to not go off screen */
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media screen and (max-width: 480px) {
+    .menu-content h1 {
+        font-size: 1.8rem;
+    }
+
+    .button-group {
+        flex-wrap: wrap;
+    }
+
+    .create-btn {
+        flex: 1 1 40%;
+        font-size: 0.9rem;
+    }
+
+    #drawing-tools {
+        gap: 8px;
+    }
+
+    .tool-btn {
+        width: 28px;
+        height: 28px;
+    }
+
+    #game-info-bar {
+        display: none;
+        /* Optionally hide info or make it very small if space is tight, or just let it stack */
+    }
+
+    /* Re-show info bar elements but compact */
+    #game-info-bar {
+        display: flex;
+        font-size: 0.75rem;
+    }
 }
