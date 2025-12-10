@@ -20,7 +20,13 @@ html {
     overflow: hidden;
     /* Prevent scrolling */
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* Prevent scrolling */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: var(--bg-color);
+}
+
+#username-input {
+    text-align: center;
 }
 
 .screen {
@@ -508,11 +514,17 @@ input[type=range]::-webkit-slider-thumb {
     }
 
     /* Make palette pop downward or aligned better on mobile */
+    /* Make palette pop downward or aligned better on mobile */
     .palette {
-        top: 40px;
-        left: -50px;
-        /* Shift left to not go off screen */
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         grid-template-columns: repeat(4, 1fr);
+        box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
+        /* Modal backdrop effect */
+        z-index: 1000;
+        padding: 20px;
     }
 }
 
