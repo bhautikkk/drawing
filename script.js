@@ -8,6 +8,7 @@ const drawingScreen = document.getElementById('drawing-screen');
 // UI Elements
 const createBtns = document.querySelectorAll('.create-btn');
 const joinBtn = document.getElementById('join-btn');
+const usernameInput = document.getElementById('username-input');
 const roomCodeInput = document.getElementById('room-code-input');
 const roomCodeDisplay = document.getElementById('room-code-display');
 const copyCodeBtn = document.getElementById('copy-code-btn');
@@ -42,15 +43,26 @@ let myRoomId = null;
 
 createBtns.forEach(btn => {
     btn.addEventListener('click', () => {
+        const username = usernameInput.value.trim();
+        if (!username) {
+            errorMsg.textContent = "Please enter your name first!";
+            return;
+        }
         const players = btn.dataset.players;
-        socket.emit('create_room', players);
+        socket.emit('create_room', { players, username });
     });
 });
 
 joinBtn.addEventListener('click', () => {
+    const username = usernameInput.value.trim();
+    if (!username) {
+        errorMsg.textContent = "Please enter your name first!";
+        return;
+    }
     const code = roomCodeInput.value.trim();
+
     if (code.length === 6) {
-        socket.emit('join_room', code);
+        socket.emit('join_room', { code, username });
     } else {
         errorMsg.textContent = "Please enter a valid 6-digit code";
     }
@@ -123,6 +135,9 @@ myTurnBtn.addEventListener('click', () => {
 socket.on('turn_requested', (data) => {
     if (isMyTurn) {
         turnModal.classList.add('active');
+        // Retrieve name from data, fallback to "Friend" if missing
+        const requesterName = data.username || "Friend";
+        turnModal.querySelector('p').textContent = `${requesterName} wants to draw!`;
 
         // Handle response
         const handleAccept = () => {

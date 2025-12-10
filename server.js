@@ -18,27 +18,33 @@ io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
     // Create Room
-    socket.on('create_room', (maxPlayers) => {
+    socket.on('create_room', (data) => { // data: { players, username }
+        const maxPlayers = data.players || 2;
+        const username = data.username || "Host";
         const roomId = generateRoomId();
+
         rooms[roomId] = {
             id: roomId,
             maxPlayers: maxPlayers,
-            players: [socket.id],
+            players: [{ id: socket.id, name: username }], // Store defined object
             drawerIndex: 0,
             gameStarted: false,
-            turnRequest: null // { requester: socketId }
+            turnRequest: null
         };
         socket.join(roomId);
         socket.emit('room_created', roomId);
-        console.log(`Room ${roomId} created by ${socket.id}`);
+        console.log(`Room ${roomId} created by ${username} (${socket.id})`);
     });
 
     // Join Room
-    socket.on('join_room', (roomId) => {
+    socket.on('join_room', (data) => { // data: { code, username }
+        const roomId = data.code;
+        const username = data.username || "Player";
         const room = rooms[roomId];
+
         if (room) {
             if (room.players.length < room.maxPlayers) {
-                room.players.push(socket.id);
+                room.players.push({ id: socket.id, name: username });
                 socket.join(roomId);
 
                 // Notify everyone in room except sender (though sender needs to know too)
@@ -53,7 +59,7 @@ io.on('connection', (socket) => {
                     // Send current state
                     socket.emit('game_state', {
                         isDrawer: false,
-                        drawerId: room.players[room.drawerIndex]
+                        drawerId: room.players[room.drawerIndex].id
                     });
                 }
             } else {
@@ -69,23 +75,23 @@ io.on('connection', (socket) => {
         room.gameStarted = true;
         // Pick random drawer
         room.drawerIndex = Math.floor(Math.random() * room.players.length);
-        const drawerId = room.players[room.drawerIndex];
+        const drawer = room.players[room.drawerIndex];
 
         io.to(roomId).emit('game_started', {
-            drawerId: drawerId
+            drawerId: drawer.id
         });
 
-        console.log(`Game started in ${roomId}, drawer: ${drawerId}`);
+        console.log(`Game started in ${roomId}, drawer: ${drawer.name}`);
     }
 
     // Drawing Event
     socket.on('draw', (data) => {
         // data contains { x, y, type: 'start'|'drag'|'end', color, width }
         // Broadcast to others in the room
-        const room = Object.values(rooms).find(r => r.players.includes(socket.id));
+        const room = Object.values(rooms).find(r => r.players.some(p => p.id === socket.id));
         if (room) {
             // Only allow current drawer to draw
-            if (socket.id === room.players[room.drawerIndex]) {
+            if (socket.id === room.players[room.drawerIndex].id) {
                 socket.to(room.id).emit('draw', data);
             }
         }
@@ -93,30 +99,36 @@ io.on('connection', (socket) => {
 
     // Clear Event
     socket.on('clear', () => {
-        const room = Object.values(rooms).find(r => r.players.includes(socket.id));
-        if (room && socket.id === room.players[room.drawerIndex]) {
+        const room = Object.values(rooms).find(r => r.players.some(p => p.id === socket.id));
+        if (room && socket.id === room.players[room.drawerIndex].id) {
             socket.to(room.id).emit('clear');
         }
     });
 
     // Request Turn
     socket.on('request_turn', () => {
-        const room = Object.values(rooms).find(r => r.players.includes(socket.id));
+        const room = Object.values(rooms).find(r => r.players.some(p => p.id === socket.id));
         if (room) {
-            const drawerId = room.players[room.drawerIndex];
+            const drawerId = room.players[room.drawerIndex].id;
+            const requester = room.players.find(p => p.id === socket.id);
+
             // Notify drawer that this user wants a turn
-            io.to(drawerId).emit('turn_requested', { requesterId: socket.id });
+            io.to(drawerId).emit('turn_requested', {
+                requesterId: socket.id,
+                requesterName: requester ? requester.name : "Friend"
+            });
         }
     });
 
     // Turn Response
     socket.on('turn_response', (data) => {
         const { requesterId, accepted } = data;
-        const room = Object.values(rooms).find(r => r.players.includes(socket.id));
-        if (room && socket.id === room.players[room.drawerIndex]) {
+        const room = Object.values(rooms).find(r => r.players.some(p => p.id === socket.id));
+
+        if (room && socket.id === room.players[room.drawerIndex].id) {
             if (accepted) {
                 // Find index of requester
-                const newDrawerIndex = room.players.indexOf(requesterId);
+                const newDrawerIndex = room.players.findIndex(p => p.id === requesterId);
                 if (newDrawerIndex !== -1) {
                     room.drawerIndex = newDrawerIndex;
                     io.to(room.id).emit('turn_change', { drawerId: requesterId });
@@ -133,7 +145,7 @@ io.on('connection', (socket) => {
         // Handle cleanup, maybe end game or remove player
         for (const roomId in rooms) {
             const room = rooms[roomId];
-            const index = room.players.indexOf(socket.id);
+            const index = room.players.findIndex(p => p.id === socket.id);
             if (index !== -1) {
                 room.players.splice(index, 1);
                 // If room empty, delete
