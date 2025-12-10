@@ -136,7 +136,7 @@ socket.on('turn_requested', (data) => {
     if (isMyTurn) {
         turnModal.classList.add('active');
         // Retrieve name from data, fallback to "Friend" if missing
-        const requesterName = data.username || "Friend";
+        const requesterName = data.requesterName || "Friend";
         turnModal.querySelector('p').textContent = `${requesterName} wants to draw!`;
 
         // Handle response
