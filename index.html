@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Drawing Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Main Menu -->
+    <div id="main-menu" class="screen active">
+        <div class="menu-content">
+            <h1>Creative Canvas</h1>
+            <p>Multiplayer Drawing Game</p>
+
+            <div class="create-section">
+                <h3>Create Room</h3>
+                <div class="button-group">
+                    <button class="create-btn" data-players="2">2 Players</button>
+                    <button class="create-btn" data-players="3">3 Players</button>
+                    <button class="create-btn" data-players="4">4 Players</button>
+                </div>
+            </div>
+
+            <div class="join-section">
+                <h3>Join Room</h3>
+                <input type="number" id="room-code-input" placeholder="Enter 6-digit Code">
+                <button id="join-btn">Join</button>
+            </div>
+            <p id="menu-error" class="error-msg"></p>
+        </div>
+    </div>
+
+    <!-- Lobby / Waiting Screen -->
+    <div id="lobby-screen" class="screen">
+        <div class="lobby-content">
+            <h2>Waiting for players...</h2>
+            <div class="code-display">
+                <span id="room-code-display">------</span>
+                <button id="copy-code-btn">Copy</button>
+            </div>
+            <p>Share this code with your friends!</p>
+            <p id="player-count">Players: 1/2</p>
+        </div>
+    </div>
+
+    <!-- Drawing Screen -->
+    <div id="drawing-screen" class="screen">
+        <div id="top-bar">
+            <div class="color-picker" id="color-picker">
+                <div class="color-option selected" style="background-color: #000000;" data-color="#000000"></div>
+                <div class="color-option" style="background-color: #FF0000;" data-color="#FF0000"></div>
+                <div class="color-option" style="background-color: #00FF00;" data-color="#00FF00"></div>
+                <div class="color-option" style="background-color: #0000FF;" data-color="#0000FF"></div>
+                <div class="color-option" style="background-color: #FFFF00;" data-color="#FFFF00"></div>
+                <div class="color-option" style="background-color: #FFA500;" data-color="#FFA500"></div>
+                <div class="color-option" style="background-color: #FF00FF;" data-color="#FF00FF"></div>
+            </div>
+            <div class="tools" id="tools-container">
+                <button id="eraser-btn">Eraser</button>
+                <button id="clear-btn">Clear</button>
+            </div>
+        </div>
+
+        <div id="spectator-overlay">
+            <div class="overlay-content">
+                <h2>Spectating</h2>
+                <p>Watch your friend draw!</p>
+                <button id="my-turn-btn">My Turn!</button>
+            </div>
+        </div>
+
+        <canvas id="drawing-canvas"></canvas>
+    </div>
+
+    <!-- Turn Request Modal -->
+    <div id="turn-modal" class="modal">
+        <div class="modal-content">
+            <h3>Turn Request</h3>
+            <p>Your friend wants to draw!</p>
+            <div class="modal-buttons">
+                <button id="accept-turn-btn">Accept</button>
+                <button id="reject-turn-btn">Reject</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
