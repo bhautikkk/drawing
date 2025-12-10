@@ -86,7 +86,7 @@ html {
     padding: 25px;
     border-radius: 20px;
     /* Softer rounded corners */
-    margin-bottom: 25px;
+    margin: 0 auto 25px auto;
     width: 100%;
     max-width: 400px;
     border: 1px solid rgba(255, 255, 255, 0.6);

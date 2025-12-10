@@ -107,6 +107,15 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Sync Screen Event (for Undo/Redo optimization)
+    socket.on('sync_screen', (data) => {
+        // data: { image: base64 }
+        const room = Object.values(rooms).find(r => r.players.some(p => p.id === socket.id));
+        if (room && socket.id === room.players[room.drawerIndex].id) {
+            socket.to(room.id).emit('sync_screen', data);
+        }
+    });
+
     // Request Turn
     socket.on('request_turn', () => {
         const room = Object.values(rooms).find(r => r.players.some(p => p.id === socket.id));

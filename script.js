@@ -363,51 +363,19 @@ function redrawCanvas() {
     // 1. Clear Local
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 2. Clear Remote (Network efficient? No, but required)
-    socket.emit('clear');
+    // 2. Clear Remote (Still good to send clear signal first to be safe, though sync overrides)
+    // socket.emit('clear'); // Optional if sync covers it, but keeps state clean. Let's keep it or just reliance on sync.
+    // Actually, sync replaces the whole image so clear isn't strictly needed on remote if we send full image.
+    // But let's keep it simple.
 
-    // 3. Replay History
+    // 3. Replay History Locally
     strokeHistory.forEach(stroke => {
-        // Draw Local
         drawStrokeLocally(stroke);
-
-        // Emit to Network (We need to re-emit the whole path? Or just 'start' and 'end'?)
-        // To be safe and simple: specific 'batch_draw' event would be best, but we only have 'draw'
-        // Emitting hundreds of drag events is BAD.
-        // Let's emit a simplified path?
-        // Wait, standard 'draw' event logic handles 'start' -> 'drag' -> 'end'. 
-        // We can just emit that sequence.
-
-        // Optimization: Create a 'stroke' event listener on server? 
-        // No server changes allowed ideally.
-        // We have to use existing events.
-        // Event types: 'start', 'drag', 'end'.
-
-        if (stroke.path.length > 0) {
-            // Start
-            socket.emit('draw', {
-                type: 'start',
-                x: stroke.path[0].x,
-                y: stroke.path[0].y,
-                color: stroke.color,
-                width: stroke.width
-            });
-
-            // Drag (Skip some points to save bandwidth?)
-            for (let i = 1; i < stroke.path.length; i++) {
-                socket.emit('draw', {
-                    type: 'drag',
-                    x: stroke.path[i].x,
-                    y: stroke.path[i].y,
-                    prevX: stroke.path[i - 1].x,
-                    prevY: stroke.path[i - 1].y
-                });
-            }
-
-            // End
-            socket.emit('draw', { type: 'end' });
-        }
     });
+
+    // 4. Sync Final State to Network (Fix for "wipe" glitch)
+    const imageData = canvas.toDataURL();
+    socket.emit('sync_screen', { image: imageData });
 }
 
 function drawStrokeLocally(stroke) {
@@ -536,6 +504,16 @@ socket.on('draw', (data) => {
 
 socket.on('clear', () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+});
+
+socket.on('sync_screen', (data) => {
+    if (isMyTurn) return;
+    const img = new Image();
+    img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+    };
+    img.src = data.image; // Assume data contains { image: base64 } or just data if sent directly, let's allow object
 });
 
 // Listeners
