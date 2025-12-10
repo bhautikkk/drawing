@@ -42,27 +42,59 @@ html {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%);
-    color: white;
+    background: url('background.png') no-repeat center center fixed;
+    background-size: cover;
+    color: #333;
+    /* Dark text for contrast against bright sky */
     text-align: center;
     padding: 20px;
 }
 
 .menu-content h1,
 .lobby-content h2 {
-    font-size: 2.5rem;
+    font-size: 3rem;
     margin-bottom: 2rem;
+    color: white;
+    /* White text looks better on the blue sky */
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    /* Soft shadow */
+    font-weight: 800;
 }
 
+.menu-content p,
+.lobby-content p {
+    color: white;
+    font-weight: 600;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Glassmorphism Containers */
 .create-section,
-.join-section {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    padding: 20px;
-    border-radius: 15px;
-    margin-bottom: 20px;
+.join-section,
+.lobby-content .code-display,
+.name-section {
+    background: rgba(255, 255, 255, 0.35);
+    /* More transparent */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 25px;
+    border-radius: 20px;
+    /* Softer rounded corners */
+    margin-bottom: 25px;
     width: 100%;
     max-width: 400px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    /* Soft premium shadow */
+    color: #333;
+}
+
+/* Specific fix for code display container since I added it to the selector list above */
+.lobby-content .code-display {
+    display: flex;
+    flex-direction: row;
+    /* Ensure it keeps row layout */
+    margin: 20px 0;
 }
 
 .button-group {

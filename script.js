@@ -268,6 +268,7 @@ window.addEventListener('resize', resizeCanvas);
 // Size Slider
 brushSizeInput.addEventListener('input', (e) => {
     currentLineWidth = e.target.value;
+    ctx.lineWidth = currentLineWidth; // Fix: Update context immediately
 });
 
 // Color Picker Toggle
