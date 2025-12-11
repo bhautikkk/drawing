@@ -562,3 +562,29 @@ input[type=range]::-webkit-slider-thumb {
         font-size: 0.75rem;
     }
 }
+
+/* Toast Notification */
+.toast {
+    visibility: visible;
+    min-width: 250px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 8px;
+    padding: 16px;
+    position: fixed;
+    z-index: 2000;
+    left: 50%;
+    top: 30px;
+    transform: translateX(-50%);
+    font-size: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    opacity: 1;
+    transition: opacity 0.5s, top 0.5s;
+}
+
+.toast.hidden {
+    visibility: hidden;
+    opacity: 0;
+    top: 0px;
+}

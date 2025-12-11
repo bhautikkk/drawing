@@ -146,7 +146,11 @@ io.on('connection', (socket) => {
                 }
             } else {
                 // Notify requester it was rejected
-                io.to(requesterId).emit('turn_rejected');
+                // Get rejector name (current socket is the drawer)
+                const rejector = room.players.find(p => p.id === socket.id);
+                io.to(requesterId).emit('turn_rejected', {
+                    rejectorName: rejector ? rejector.name : "Drawer"
+                });
             }
         }
     });

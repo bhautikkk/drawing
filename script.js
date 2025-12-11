@@ -243,11 +243,38 @@ socket.on('turn_change', (data) => {
     }
 });
 
-socket.on('turn_rejected', () => {
-    alert("Your turn request was rejected.");
-    myTurnBtn.textContent = "My Turn!";
-    myTurnBtn.disabled = false;
+socket.on('turn_rejected', (data) => {
+    const rejectorName = data.rejectorName || "The drawer";
+    showToast(`${rejectorName} rejected you`);
+
+    // Cooldown
+    const COOLDOWN_TIME = 25;
+    let remainingTime = COOLDOWN_TIME;
+
+    myTurnBtn.disabled = true;
+    myTurnBtn.textContent = `Wait ${remainingTime}s`;
+
+    const interval = setInterval(() => {
+        remainingTime--;
+        if (remainingTime > 0) {
+            myTurnBtn.textContent = `Wait ${remainingTime}s`;
+        } else {
+            clearInterval(interval);
+            myTurnBtn.textContent = "My Turn!";
+            myTurnBtn.disabled = false;
+        }
+    }, 1000);
 });
+
+function showToast(message) {
+    const toast = document.getElementById("notification-toast");
+    toast.textContent = message;
+    toast.classList.remove("hidden");
+
+    setTimeout(() => {
+        toast.classList.add("hidden");
+    }, 2000);
+}
 
 // --- Drawing Logic ---
 
