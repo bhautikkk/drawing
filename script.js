@@ -138,6 +138,10 @@ function updateRole(drawerId) {
     if (socket.id === drawerId) {
         // I am the drawer
         isMyTurn = true;
+
+        // Reset tools to default (Black, Size 5)
+        resetTools();
+
         // spectatorOverlay.classList.remove('active'); // Removed overlay
         topBar.style.pointerEvents = 'auto';
 
@@ -274,6 +278,22 @@ function showToast(message) {
     setTimeout(() => {
         toast.classList.add("hidden");
     }, 2000);
+}
+
+function resetTools() {
+    // Default values
+    currentColor = '#000000';
+    currentLineWidth = 5;
+
+    // Update UI
+    currentColorBtn.style.backgroundColor = currentColor;
+    brushSizeInput.value = currentLineWidth;
+
+    // Reset Eraser state
+    if (eraserBtn) eraserBtn.classList.remove('active');
+
+    // Update Context
+    updateContext();
 }
 
 // --- Drawing Logic ---
