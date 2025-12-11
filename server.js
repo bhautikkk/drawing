@@ -62,6 +62,18 @@ io.on('connection', (socket) => {
                         drawerId: room.players[room.drawerIndex].id,
                         players: room.players // Send list of players
                     });
+
+                    // FIX: Notify EXISTING players about the NEW player
+                    io.to(roomId).emit('update_players', {
+                        players: room.players,
+                        drawerId: room.players[room.drawerIndex].id
+                    });
+
+                    // NEW FIX: Request canvas state from drawer
+                    const drawerId = room.players[room.drawerIndex].id;
+                    io.to(drawerId).emit('request_canvas_state', {
+                        newPlayerId: socket.id
+                    });
                 }
             } else {
                 socket.emit('error', 'Room is full');
@@ -69,6 +81,12 @@ io.on('connection', (socket) => {
         } else {
             socket.emit('error', 'Invalid Room Code');
         }
+    });
+
+    // Sync Canvas State (Late Joiner)
+    socket.on('send_canvas_state', (data) => {
+        const { image, targetId } = data;
+        io.to(targetId).emit('canvas_state', { image });
     });
 
     function startGame(roomId) {
@@ -171,6 +189,12 @@ io.on('connection', (socket) => {
                     if (index === room.drawerIndex) {
                         // Simple logic: reset game or pick next
                         startGame(roomId);
+                    } else {
+                        // FIX: If not drawer, just update list for others
+                        io.to(roomId).emit('update_players', {
+                            players: room.players,
+                            drawerId: room.players[room.drawerIndex].id
+                        });
                     }
                 }
                 break;

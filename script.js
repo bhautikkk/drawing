@@ -130,6 +130,10 @@ socket.on('game_state', (data) => {
     renderPlayerList(data.players, data.drawerId);
 });
 
+socket.on('update_players', (data) => {
+    renderPlayerList(data.players, data.drawerId);
+});
+
 // --- Role Management ---
 
 // --- Role Management ---
@@ -561,6 +565,26 @@ socket.on('sync_screen', (data) => {
         ctx.drawImage(img, 0, 0);
     };
     img.src = data.image; // Assume data contains { image: base64 } or just data if sent directly, let's allow object
+});
+
+// New Canvas Sync Events
+socket.on('request_canvas_state', (data) => {
+    if (isMyTurn) {
+        const image = canvas.toDataURL();
+        socket.emit('send_canvas_state', {
+            image,
+            targetId: data.newPlayerId
+        });
+    }
+});
+
+socket.on('canvas_state', (data) => {
+    const img = new Image();
+    img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+    };
+    img.src = data.image;
 });
 
 // Listeners
