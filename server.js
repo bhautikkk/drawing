@@ -141,12 +141,27 @@ io.on('connection', (socket) => {
             const drawerId = room.players[room.drawerIndex].id;
             const requester = room.players.find(p => p.id === socket.id);
 
-            // Notify drawer that this user wants a turn
-            io.to(drawerId).emit('turn_requested', {
-                requesterId: socket.id,
-                requesterName: requester ? requester.name : "Friend"
-            });
+            // Check if drawer exists
+            const drawerSocket = io.sockets.sockets.get(drawerId);
+
+            if (drawerSocket) {
+                // Notify drawer that this user wants a turn
+                io.to(drawerId).emit('turn_requested', {
+                    requesterId: socket.id,
+                    requesterName: requester ? requester.name : "Friend"
+                });
+                // Confirm to sender
+                socket.emit('turn_request_sent');
+            } else {
+                // Drawer is missing? logic fix might be needed but for now notify sender
+                socket.emit('turn_rejected', { rejectorName: "Server (Drawer missing)" });
+            }
         }
+    });
+
+    // Leave Room
+    socket.on('leave_room', () => {
+        handleDisconnect(socket);
     });
 
     // Turn Response
@@ -175,6 +190,10 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
+        handleDisconnect(socket);
+    });
+
+    function handleDisconnect(socket) {
         // Handle cleanup, maybe end game or remove player
         for (const roomId in rooms) {
             const room = rooms[roomId];
@@ -184,13 +203,19 @@ io.on('connection', (socket) => {
                 // If room empty, delete
                 if (room.players.length === 0) {
                     delete rooms[roomId];
+                    console.log(`Room ${roomId} deleted (empty)`);
                 } else {
                     // If drawer left, pick new one or end?
                     if (index === room.drawerIndex) {
                         // Simple logic: reset game or pick next
                         startGame(roomId);
                     } else {
-                        // FIX: If not drawer, just update list for others
+                        // Fix drawerIndex if the person who left was BEFORE the drawer
+                        if (index < room.drawerIndex) {
+                            room.drawerIndex--;
+                        }
+
+                        // Notify others
                         io.to(roomId).emit('update_players', {
                             players: room.players,
                             drawerId: room.players[room.drawerIndex].id
@@ -200,8 +225,9 @@ io.on('connection', (socket) => {
                 break;
             }
         }
-    });
+    }
 });
+
 
 const PORT = process.env.PORT || 8000;
 server.listen(PORT, '0.0.0.0', () => {

@@ -443,6 +443,22 @@ input[type=range]::-webkit-slider-thumb {
     cursor: not-allowed;
 }
 
+.exit-btn {
+    padding: 8px 16px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-left: 10px;
+}
+
+.exit-btn:hover {
+    background-color: #d32f2f;
+}
+
 #drawing-canvas {
     flex: 1;
     width: 100%;

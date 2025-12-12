@@ -24,6 +24,7 @@ const eraserBtn = document.getElementById('eraser-btn');
 const topBar = document.getElementById('top-bar');
 // const spectatorOverlay = document.getElementById('spectator-overlay'); // Removed
 const myTurnBtn = document.getElementById('my-turn-btn');
+const exitBtn = document.getElementById('exit-btn');
 
 // New Toolbar Elements
 const currentColorBtn = document.getElementById('current-color-btn');
@@ -195,6 +196,22 @@ myTurnBtn.addEventListener('click', () => {
     socket.emit('request_turn');
     myTurnBtn.textContent = "Request Sent...";
     myTurnBtn.disabled = true;
+
+    // Timeout fallback if server doesn't respond
+    setTimeout(() => {
+        if (myTurnBtn.textContent === "Request Sent...") {
+            myTurnBtn.textContent = "My Turn";
+            myTurnBtn.disabled = false;
+            showToast("Request timed out. Try again.");
+        }
+    }, 5000);
+});
+
+exitBtn.addEventListener('click', () => {
+    if (confirm("Are you sure you want to exit?")) {
+        socket.emit('leave_room');
+        location.reload();
+    }
 });
 
 socket.on('turn_requested', (data) => {
@@ -224,6 +241,12 @@ socket.on('turn_requested', (data) => {
 
         acceptTurnBtn.addEventListener('click', handleAccept);
         rejectTurnBtn.addEventListener('click', handleReject);
+    }
+});
+
+socket.on('turn_request_sent', () => {
+    if (myTurnBtn.textContent === "Request Sent...") {
+        // Optionally update text or UI
     }
 });
 
