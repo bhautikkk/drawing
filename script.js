@@ -140,13 +140,13 @@ socket.on('update_players', (data) => {
 // --- Role Management ---
 
 function updateRole(drawerId) {
+    // Reset tools and history for EVERYONE when turn changes
+    resetTools();
+    resetHistory();
+
     if (socket.id === drawerId) {
         // I am the drawer
         isMyTurn = true;
-
-        // Reset tools to default (Black, Size 5)
-        resetTools();
-        resetHistory(); // Reset Undo/Redo History
 
         // spectatorOverlay.classList.remove('active'); // Removed overlay
         topBar.style.pointerEvents = 'auto';
