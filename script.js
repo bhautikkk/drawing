@@ -146,6 +146,7 @@ function updateRole(drawerId) {
 
         // Reset tools to default (Black, Size 5)
         resetTools();
+        resetHistory(); // Reset Undo/Redo History
 
         // spectatorOverlay.classList.remove('active'); // Removed overlay
         topBar.style.pointerEvents = 'auto';
@@ -165,6 +166,11 @@ function updateRole(drawerId) {
         if (toolsContainer) toolsContainer.style.display = 'none';
         myTurnBtn.style.display = 'inline-block';
     }
+}
+
+function resetHistory() {
+    strokeHistory = [];
+    redoStack = [];
 }
 
 function renderPlayerList(players, currentDrawerId) {
