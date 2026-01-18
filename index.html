@@ -39,6 +39,16 @@
                         <label for="players-input" class="setting-label">Max Players</label>
                         <input type="number" id="players-input" value="8" min="2" max="20" class="setting-input">
                     </div>
+                    <div class="setting-item">
+                        <label for="time-input" class="setting-label">Draw Time (sec)</label>
+                        <select id="time-input" class="setting-input">
+                            <option value="60">60s (1 min)</option>
+                            <option value="120">120s (2 min)</option>
+                            <option value="180">180s (3 min)</option>
+                            <option value="240">240s (4 min)</option>
+                            <option value="300">300s (5 min)</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button id="create-room-btn"

@@ -234,10 +234,11 @@ function getRandomWords(count = 3) {
 // --- Game Logic Classes ---
 
 class GameRoom {
-    constructor(id, maxPlayers, hostName, hostId, maxRounds = 5, isPublic = false) {
+    constructor(id, maxPlayers, hostName, hostId, maxRounds = 5, drawingTime = 60, isPublic = false) {
         this.id = id;
         this.maxPlayers = maxPlayers;
         this.maxRounds = maxRounds;
+        this.drawingTime = drawingTime;
         this.isPublic = isPublic;
         this.players = []; // Array of { id, name, score, avatar, guessed }
         this.addPlayer(hostId, hostName);
@@ -251,6 +252,7 @@ class GameRoom {
         this.timeLeft = 0;
         this.canvasState = [];
     }
+
 
     addPlayer(id, name) {
         this.players.push({
@@ -339,7 +341,7 @@ class GameRoom {
     startDrawingPhase(word) {
         this.state = 'DRAWING';
         this.currentWord = word;
-        this.timeLeft = GAME_SETTINGS.TIME_DRAWING;
+        this.timeLeft = this.drawingTime;
 
         const masked = word.split('').map(c => c === ' ' ? ' ' : '_').join('');
 
@@ -355,7 +357,7 @@ class GameRoom {
         const drawer = this.getDrawer();
         io.to(drawer.id).emit("your_word", word);
 
-        this.startTimer(GAME_SETTINGS.TIME_DRAWING, () => {
+        this.startTimer(this.drawingTime, () => {
             this.endTurn();
         });
     }
@@ -426,7 +428,7 @@ class GameRoom {
 
         if (guess === answer) {
             player.guessed = true;
-            const score = Math.max(100, Math.ceil((this.timeLeft / GAME_SETTINGS.TIME_DRAWING) * 500));
+            const score = Math.max(100, Math.ceil((this.timeLeft / this.drawingTime) * 500));
             player.score += score;
 
             const drawer = this.players.find(p => p.id === this.getDrawer().id);
@@ -477,9 +479,9 @@ class GameRoom {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('create_room', ({ players, username, rounds, isPublic }) => {
+    socket.on('create_room', ({ players, username, rounds, drawingTime, isPublic }) => {
         const roomId = generateRoomId();
-        const room = new GameRoom(roomId, parseInt(players), username, socket.id, parseInt(rounds) || 5, isPublic);
+        const room = new GameRoom(roomId, parseInt(players), username, socket.id, parseInt(rounds) || 5, parseInt(drawingTime) || 60, isPublic);
         rooms[roomId] = room;
 
         socket.join(roomId);

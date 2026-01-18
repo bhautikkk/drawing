@@ -75,6 +75,7 @@ function init() {
             const name = ui.menu.username.value.trim();
             const rounds = document.getElementById('rounds-input').value;
             const maxPlayers = document.getElementById('players-input').value;
+            const time = document.getElementById('time-input').value;
             const type = document.getElementById('room-type').value;
 
             if (!name) return showError("Enter a name!");
@@ -83,6 +84,7 @@ function init() {
                 players: parseInt(maxPlayers) || 8,
                 username: name,
                 rounds: parseInt(rounds) || 5,
+                drawingTime: parseInt(time) || 60,
                 isPublic: (type === 'public')
             });
         });
@@ -170,22 +172,34 @@ function init() {
 }
 
 let lastWidth = 0;
+let lastHeight = 0;
 
 function resizeCanvas() {
     // Only resize if game screen is active
     if (screens.game.classList.contains('active')) {
         const parent = ui.canvas.parentElement;
         if (parent.clientWidth && parent.clientHeight) {
-            // Mobile Keyboard Fix: If width is same (or very close), typical of keyboard open/close,
-            // we might opt to NOT resize height to prevent clearing.
-            // However, chat layout might push canvas.
-            // Better approach: If history exists, REPLAY it immediately.
-            // The user says "everything erases", implying replay isn't working or timing is off.
 
-            // Let's optimize: Only resize if dimensions actually changed significantly
-            if (ui.canvas.width !== parent.clientWidth || ui.canvas.height !== parent.clientHeight) {
-                ui.canvas.width = parent.clientWidth;
-                ui.canvas.height = parent.clientHeight;
+            const newWidth = parent.clientWidth;
+            const newHeight = parent.clientHeight;
+
+            // Mobile Keyboard Detection Strategy:
+            // If width is roughly the same (tolerance for scrollbar changes), but height significantly decreases,
+            // it's likely the virtual keyboard opening. We should IGNORE this resize event to prevent canvas clearing.
+            // Exception: If lastWidth was 0 (first load), we must resize.
+
+            if (lastWidth > 0 && Math.abs(newWidth - lastWidth) < 50 && newHeight < lastHeight * 0.8) {
+                console.log("[DEBUG] Ignored resize: Likely mobile keyboard open.");
+                return;
+            }
+
+            // Only resize if dimensions actually changed
+            if (ui.canvas.width !== newWidth || ui.canvas.height !== newHeight) {
+                ui.canvas.width = newWidth;
+                ui.canvas.height = newHeight;
+
+                lastWidth = newWidth;
+                lastHeight = newHeight;
 
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
@@ -196,7 +210,6 @@ function resizeCanvas() {
 
                 // Replay history if exists, as resize clears canvas
                 if (typeof replayHistory === 'function') {
-                    // Small delay to ensure layout settles? No, immediate is better for visual continuity
                     replayHistory();
                 }
             }
