@@ -811,7 +811,18 @@ canvas {
     }
 
     .palette {
-        bottom: 45px;
+        position: fixed;
+        /* Escape container clipping */
+        bottom: 70px;
+        /* Position above tools */
+        left: 50%;
+        transform: translateX(-50%);
+        width: auto;
+        min-width: 200px;
+        z-index: 2000;
+        /* High z-index */
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        border: 2px solid #eee;
     }
 
     /* Make active drawer styling more obvious in small list */
