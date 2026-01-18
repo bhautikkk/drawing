@@ -152,6 +152,12 @@ function init() {
         tools.eraser.classList.toggle('active', currentSettings.isEraser);
     });
 
+    tools.undo.addEventListener('click', () => {
+        if (canDraw) {
+            socket.emit('undo');
+        }
+    });
+
     tools.clear.addEventListener('click', () => {
         if (canDraw) {
             ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
@@ -163,20 +169,36 @@ function init() {
     setTimeout(resizeCanvas, 500);
 }
 
+let lastWidth = 0;
+
 function resizeCanvas() {
     // Only resize if game screen is active
     if (screens.game.classList.contains('active')) {
         const parent = ui.canvas.parentElement;
         if (parent.clientWidth && parent.clientHeight) {
-            ui.canvas.width = parent.clientWidth;
-            ui.canvas.height = parent.clientHeight;
+            // Mobile Keyboard Fix: If width is same (or very close), typical of keyboard open/close,
+            // we might opt to NOT resize height to prevent clearing.
+            // However, chat layout might push canvas.
+            // Better approach: If history exists, REPLAY it immediately.
+            // The user says "everything erases", implying replay isn't working or timing is off.
 
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            // Let's optimize: Only resize if dimensions actually changed significantly
+            if (ui.canvas.width !== parent.clientWidth || ui.canvas.height !== parent.clientHeight) {
+                ui.canvas.width = parent.clientWidth;
+                ui.canvas.height = parent.clientHeight;
 
-            // Replay history if exists, as resize clears canvas
-            if (typeof replayHistory === 'function') {
-                replayHistory();
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // Re-apply current drawing settings
+                ctx.strokeStyle = currentSettings.isEraser ? '#ffffff' : currentSettings.color;
+                ctx.lineWidth = currentSettings.size;
+
+                // Replay history if exists, as resize clears canvas
+                if (typeof replayHistory === 'function') {
+                    // Small delay to ensure layout settles? No, immediate is better for visual continuity
+                    replayHistory();
+                }
             }
         }
     }
@@ -349,6 +371,11 @@ socket.on('game_over', (players) => {
         div.style.fontWeight = i === 0 ? 'bold' : 'normal';
         podium.appendChild(div);
     });
+
+    // Auto-refresh after 5 seconds
+    setTimeout(() => {
+        location.reload();
+    }, 5000);
 
     document.getElementById('return-home-btn').onclick = () => location.reload();
 });
