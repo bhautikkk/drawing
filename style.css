@@ -748,6 +748,15 @@ canvas {
         color: #555;
     }
 
+    .drawer-icon {
+        display: none;
+        font-size: 0.9rem;
+    }
+
+    .player-card.active-drawer .drawer-icon {
+        display: block;
+    }
+
     #canvas-area {
         grid-area: canvas;
         border-radius: 5px;
