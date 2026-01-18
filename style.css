@@ -625,6 +625,8 @@ canvas {
     word-wrap: break-word;
     max-width: 100%;
     overflow-wrap: break-word;
+    color: #333;
+    /* Fix: Ensure text is visible (not white on white) */
 }
 
 .word-option-btn:hover {
