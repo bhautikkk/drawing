@@ -353,10 +353,12 @@ socket.on('timer_update', (time) => {
 });
 
 socket.on('draw', (data) => {
+    receivedHistory.push(data); // FIX: Store stroke for replay
     drawRemote(data);
 });
 
 socket.on('clear', () => {
+    receivedHistory = []; // FIX: Clear history locally
     ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
 });
 
