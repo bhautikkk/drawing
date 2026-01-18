@@ -173,6 +173,11 @@ function resizeCanvas() {
 
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
+
+            // Replay history if exists, as resize clears canvas
+            if (typeof replayHistory === 'function') {
+                replayHistory();
+            }
         }
     }
 }
@@ -184,7 +189,14 @@ function showError(msg) {
 function showScreen(screenName) {
     Object.values(screens).forEach(s => s.classList.remove('active'));
     screens[screenName].classList.add('active');
-    if (screenName === 'game') setTimeout(resizeCanvas, 100);
+
+    // Toggle body background for game screen
+    if (screenName === 'game') {
+        document.body.classList.add('game-active');
+        setTimeout(resizeCanvas, 100);
+    } else {
+        document.body.classList.remove('game-active');
+    }
 }
 
 // --- Socket Events ---
@@ -219,6 +231,25 @@ socket.on('update_players', (data) => {
     }
 });
 
+// Store history locally
+let receivedHistory = [];
+
+function replayHistory() {
+    if (!receivedHistory.length) return;
+
+    receivedHistory.forEach(action => {
+        drawRemote(action);
+    });
+}
+
+socket.on('canvas_history', (history) => {
+    console.log(`[DEBUG] Received history: ${history.length} items`); // DEBUG
+    receivedHistory = history;
+    replayHistory();
+    // Failsafe: Replay again after UI settles
+    setTimeout(replayHistory, 500);
+});
+
 socket.on('state_update', (data) => {
     // data: { state, round, drawerId, drawerName, timeLeft, word, maskedWord }
 
@@ -238,13 +269,16 @@ socket.on('state_update', (data) => {
         ui.overlays.word.classList.add('hidden'); // Ensure hidden for guessers
     }
     else if (data.state === 'DRAWING') {
+        // Ensure overlay is gone (e.g. if auto-selected)
+        ui.overlays.word.classList.add('hidden');
+
         canDraw = (myId === data.drawerId); // Only drawer can draw
         ui.tools.classList.toggle('disabled', !canDraw);
 
         if (canDraw) {
             ui.word.textContent = `DRAW THIS: ${data.word || "???"}`; // Should be sent via 'your_word' usually
         } else {
-            ui.word.textContent = data.maskedWord || "_ _ _";
+            ui.word.textContent = data.maskWords || data.maskedWord || "_ _ _";
         }
     }
     else if (data.state === 'INTERMISSION') {
@@ -329,15 +363,29 @@ function updateTimer(time) {
 function renderPlayers(players, drawerId, state) {
     // 1. Render in Game Sidebar
     ui.playerList.innerHTML = '';
-    players.forEach(p => {
+
+    // Sort by score for ranking display (copy to not mutate original order for drawer logic if that relies on index)
+    // Actually drawerIndex relies on original order. So we must map to new array or handle carefuly.
+    // The visual list should be sorted, but currently drawerIndex logic in server is index based.
+    // The server sends `players`, and `drawerIndex` is index in that array.
+    // If we sort visually, we don't break logic as long as we don't change the underlying data structures for logic?
+    // Wait, the client doesn't hold logic state for turns. It just renders.
+
+    // Let's create a visual sorted list
+    const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+
+    sortedPlayers.forEach((p, index) => {
         const el = document.createElement('div');
         el.className = 'player-card';
         if (p.id === drawerId) el.classList.add('active-drawer');
         if (p.guessed) el.classList.add('guessed');
 
+        const rank = index + 1;
+
         el.innerHTML = `
+            <div class="player-rank">#${rank}</div>
             <div class="player-name">${p.name} ${myId === p.id ? '(You)' : ''}</div>
-            <div class="player-score">Points: ${p.score}</div>
+            <div class="player-score">${p.score}</div>
             <div class="drawer-icon">✏️</div>
         `;
         ui.playerList.appendChild(el);
@@ -483,6 +531,8 @@ function drawRec(data) {
     ctx.stroke();
     // Context closed path removed - was causing issues with points
 }
+
+
 
 function getPos(e) {
     const rect = ui.canvas.getBoundingClientRect();

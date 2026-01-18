@@ -9,15 +9,21 @@
 }
 
 body {
-    background: #544a7d;
-    /* Skribbl-like dark purple/blue background */
-    background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+    background: url('background.png') no-repeat center center fixed;
+    background-size: cover;
+    /* Skribbl-like dark purple/blue background fallback */
+    background-color: #544a7d;
     color: #333;
     overflow: hidden;
     height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+body.game-active {
+    background: #544a7d;
+    /* Solid color for game, hiding image */
 }
 
 /* Screens */
@@ -51,7 +57,7 @@ body {
     animation: popIn 0.3s ease;
 }
 
-/* Main Menu & Lobby Styles (Existing-ish but refreshed) */
+/* Main Menu & Lobby Styles (Redesigned) */
 #main-menu,
 #lobby-screen {
     align-items: center;
@@ -61,58 +67,179 @@ body {
 
 .menu-content,
 .lobby-content {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
     padding: 40px;
-    border-radius: 20px;
+    border-radius: 25px;
     text-align: center;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.5);
     width: 90%;
-    max-width: 400px;
+    max-width: 420px;
     color: #333;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Continuous Shine Animation */
+@keyframes continuousShine {
+    0% {
+        left: -100%;
+        opacity: 0;
+    }
+
+    20% {
+        opacity: 0.8;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+
+    80% {
+        opacity: 0;
+    }
+
+    100% {
+        left: 200%;
+        opacity: 0;
+    }
+}
+
+.menu-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(to right,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.6) 50%,
+            rgba(255, 255, 255, 0) 100%);
+    transform: skewX(-25deg);
+    animation: continuousShine 3s infinite;
+    pointer-events: none;
 }
 
 h1 {
     font-family: 'Fredoka One', cursive;
-    color: #4b6cb7;
-    font-size: 3rem;
+    background: linear-gradient(45deg, #4b6cb7, #182848);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 3.5rem;
     margin-bottom: 0.5rem;
+    filter: drop-shadow(2px 2px 0px rgba(0, 0, 0, 0.1));
 }
 
 input[type="text"],
-input[type="number"] {
+input[type="number"],
+select {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     margin: 10px 0;
-    border: 2px solid #ddd;
-    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
     font-size: 1rem;
     outline: none;
+    background: rgba(255, 255, 255, 0.8);
+    transition: all 0.3s ease;
+    font-family: inherit;
+    appearance: none;
+    /* Remove default browser arrow for select */
 }
 
-input:focus {
+/* Custom Arrow for Select */
+.setting-item {
+    position: relative;
+    text-align: left;
+    flex: 1;
+}
+
+select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%20viewBox%3D%220%200%20292.4%20292.4%22%3E%3Cpath%20fill%3D%22%234b6cb7%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 12px;
+    padding-right: 30px;
+}
+
+input:focus,
+select:focus {
     border-color: #4b6cb7;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(75, 108, 183, 0.1);
+}
+
+.settings-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 25px;
+    justify-content: center;
+}
+
+.setting-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #555;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 2px;
+}
+
+.setting-input {
+    margin: 0 !important;
+    /* Override default margin */
+    padding: 12px 14px !important;
 }
 
 button {
-    background: #4b6cb7;
+    background: linear-gradient(135deg, #56ccf2 0%, #2f80ed 100%);
     color: white;
     border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 1rem;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 1.1rem;
     cursor: pointer;
-    font-weight: 600;
-    transition: transform 0.1s, background 0.2s;
-    margin: 5px;
+    font-weight: 700;
+    transition: all 0.2s ease;
+    margin: 8px 0;
+    box-shadow: 0 4px 15px rgba(47, 128, 237, 0.3);
+    width: 100%;
+    /* Default to full width for better mobile tap targets */
+    position: relative;
+    overflow: hidden;
 }
 
 button:hover {
-    background: #3a5596;
     transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(47, 128, 237, 0.4);
+    filter: brightness(1.1);
 }
 
 button:active {
-    transform: translateY(0);
+    transform: translateY(1px);
+    box-shadow: 0 2px 10px rgba(47, 128, 237, 0.3);
+}
+
+/* Shine effect on button hover */
+button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: 0.5s;
+}
+
+button:hover::after {
+    left: 100%;
 }
 
 .button-group {
@@ -126,8 +253,8 @@ button:active {
 
 /* Drawing Screen Layout - The Skribbl Look */
 #drawing-screen.active {
-    background: #eeeeee;
-    /* Light grey game background */
+    background: transparent;
+    /* Use body background */
     display: flex;
     flex-direction: column;
 }
@@ -140,8 +267,12 @@ button:active {
     align-items: center;
     justify-content: space-between;
     padding: 0 20px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
     font-family: 'Fredoka One', cursive;
+    border-radius: 10px;
+    margin: 10px 20px 0 20px;
+    /* Floating header look */
+    border: 2px solid #eee;
 }
 
 #timer-container {
@@ -180,8 +311,8 @@ button:active {
 #game-container {
     flex: 1;
     display: flex;
-    padding: 10px;
-    gap: 10px;
+    padding: 10px 20px 20px 20px;
+    gap: 15px;
     overflow: hidden;
 }
 
@@ -202,8 +333,10 @@ button:active {
     display: flex;
     flex-direction: column;
     position: relative;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+    /* Card look */
     transition: transform 0.2s;
+    border: 2px solid #eee;
 }
 
 .player-card.active-drawer {
@@ -470,76 +603,116 @@ canvas {
 @media (max-width: 768px) {
     body {
         overscroll-behavior: none;
-        /* Prevent pull-to-refresh */
     }
 
     h1 {
-        font-size: 2rem;
+        font-size: 1.5rem;
     }
 
     .menu-content,
     .lobby-content {
         width: 95%;
-        padding: 20px;
+        padding: 15px;
     }
 
     #game-header {
         height: 50px;
         padding: 0 10px;
-        font-size: 0.8rem;
+        font-size: 0.9rem;
+        margin: 5px;
     }
 
     #word-display {
         font-size: 1.2rem;
-        letter-spacing: 2px;
+        letter-spacing: 3px;
     }
 
     #timer-container {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
     }
 
     #game-container {
-        flex-direction: column;
+        display: grid;
+        /* Mobile Layout: Canvas on top, Split Bottom (Players | Chat) */
+        grid-template-columns: 35% 65%;
+        grid-template-rows: 1fr 200px;
+        /* Canvas gets remaining height, Bottom area fixed-ish height */
+        grid-template-areas:
+            "canvas canvas"
+            "players chat";
         padding: 5px;
         gap: 5px;
+        overflow: hidden;
     }
 
     #players-sidebar {
+        grid-area: players;
         width: 100%;
-        height: 70px;
-        flex-direction: row;
-        overflow-x: auto;
-        overflow-y: hidden;
-        flex-shrink: 0;
-        order: 1;
-        border-bottom: 1px solid #ddd;
-    }
-
-    .player-card {
-        min-width: 80px;
-        max-width: 100px;
-        padding: 5px;
-        flex-shrink: 0;
-    }
-
-    #canvas-area {
-        flex: 1;
-        order: 2;
-        min-height: 250px;
-        /* Ensure minimum drawing space */
+        height: 100%;
+        flex-direction: column;
+        /* Vertical list */
+        overflow-y: auto;
+        overflow-x: hidden;
+        border: 1px solid #ddd;
+        background: #fff;
         border-radius: 5px;
     }
 
+    .player-card {
+        width: 100%;
+        padding: 5px;
+        font-size: 0.8rem;
+        margin-bottom: 2px;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 40px;
+        border-radius: 0;
+        border-bottom: 1px solid #eee;
+        box-shadow: none;
+    }
+
+    .player-name {
+        font-size: 0.75rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 70px;
+    }
+
+    .player-score {
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+
+    .player-rank {
+        font-weight: bold;
+        margin-right: 5px;
+        font-size: 0.8rem;
+        color: #555;
+    }
+
+    #canvas-area {
+        grid-area: canvas;
+        border-radius: 5px;
+        min-height: 0;
+        position: relative;
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+
+    /* Adjust tools for mobile canvas */
     #drawing-tools {
-        position: absolute;
         bottom: 5px;
-        padding: 5px 10px;
-        gap: 8px;
-        width: 95%;
-        max-width: none;
-        flex-wrap: wrap;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        padding: 5px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
         justify-content: center;
-        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 20px;
     }
 
     .tool-btn {
@@ -548,31 +721,33 @@ canvas {
         font-size: 1rem;
     }
 
-    #brush-size {
-        width: 60px;
+    #chat-sidebar {
+        grid-area: chat;
+        width: 100%;
+        height: 100%;
+        font-size: 0.8rem;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        box-shadow: none;
     }
 
-    #chat-sidebar {
-        height: 120px;
-        /* Reduced height for chat on mobile */
-        width: 100%;
-        order: 3;
-        flex-shrink: 0;
+    #chat-messages {
+        padding: 5px;
+    }
+
+    #chat-input {
+        padding: 8px;
+        font-size: 0.8rem;
     }
 
     .palette {
-        grid-template-columns: repeat(6, 1fr);
-        bottom: 60px;
+        bottom: 45px;
     }
 
-    .overlay {
-        width: 95%;
-        padding: 15px;
-    }
-
-    .options-grid {
-        flex-wrap: wrap;
-        justify-content: center;
+    /* Make active drawer styling more obvious in small list */
+    .player-card.active-drawer {
+        background-color: #fef9e7;
+        border-left: 4px solid #f1c40f;
     }
 }
 

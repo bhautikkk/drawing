@@ -310,46 +310,7 @@ io.on('connection', (socket) => {
     socket.on('join_room', ({ code, username }) => {
         const room = rooms[code];
         if (room) {
-            // Allow join if room not full, even if game started
-            if (room.players.length < room.maxPlayers) {
-                const isLateJoin = room.state !== 'LOBBY';
-
-                room.addPlayer(socket.id, username);
-                socket.join(code);
-
-                socket.emit('joined_room', code);
-                room.broadcastPlayerList();
-
-                // If joining mid-game, Update state for this user
-                if (isLateJoin) {
-                    // Send basic game info
-                    let masked = "";
-                    if (room.currentWord) {
-                        masked = room.currentWord.split('').map(c => c === ' ' ? ' ' : '_').join('');
-                    }
-
-                    socket.emit("state_update", {
-                        state: room.state,
-                        round: room.round,
-                        drawerId: room.getDrawer()?.id,
-                        drawerName: room.getDrawer()?.name,
-                        timeLeft: room.timeLeft,
-                        maskWords: masked,
-                        wordLength: room.currentWord.length
-                    });
-
-                    // Send canvas history
-                    if (room.canvasState.length > 0) {
-                        // We are not saving canvasState yet in draw event, lets fix that next?
-                        // Actually, for now, just letting them see new strokes is fine, 
-                        // but ideally we replay.
-                    }
-                }
-
-                // If in lobby and now we have enough players/admin wants, they can start
-            } else {
-                socket.emit('error', 'Room is full');
-            }
+            joinRoomLogic(socket, room, username);
         } else {
             socket.emit('error', 'Invalid Room Code');
         }
@@ -371,6 +332,7 @@ io.on('connection', (socket) => {
             }
 
             if (isLateJoin) {
+                console.log(`[DEBUG] Player ${username} joined late. CanvasState size: ${room.canvasState ? room.canvasState.length : 'undefined'}`);
                 let masked = "";
                 if (room.currentWord) {
                     masked = room.currentWord.split('').map(c => c === ' ' ? ' ' : '_').join('');
@@ -385,6 +347,12 @@ io.on('connection', (socket) => {
                     maskWords: masked,
                     wordLength: room.currentWord ? room.currentWord.length : 0
                 });
+
+                // Send canvas history
+                if (room.canvasState && room.canvasState.length > 0) {
+                    console.log(`[DEBUG] Sending history to ${username}: ${room.canvasState.length} items`); // DEBUG
+                    socket.emit('canvas_history', room.canvasState);
+                }
             }
         } else {
             socket.emit('error', 'Room is full');
@@ -408,6 +376,8 @@ io.on('connection', (socket) => {
     socket.on('draw', (data) => {
         const room = getRoom(socket);
         if (room && room.state === 'DRAWING' && room.getDrawer().id === socket.id) {
+            room.canvasState.push({ type: 'draw', ...data });
+            console.log(`[DEBUG] Saved draw stroke. Total: ${room.canvasState.length}`); // DEBUG
             socket.to(room.id).emit('draw', data);
         }
     });
@@ -415,6 +385,7 @@ io.on('connection', (socket) => {
     socket.on('clear', () => {
         const room = getRoom(socket);
         if (room && room.state === 'DRAWING' && room.getDrawer().id === socket.id) {
+            room.canvasState = [];
             socket.to(room.id).emit('clear');
         }
     });
@@ -439,18 +410,23 @@ io.on('connection', (socket) => {
         const room = getRoom(socket);
         if (room) {
             const wasDrawer = (room.getDrawer() && room.getDrawer().id === socket.id);
+            // Must store state before removing, as removePlayer shifts drawerIndex logic
+            const stateBefore = room.state;
+
             const isEmpty = room.removePlayer(socket.id);
 
             if (isEmpty) {
                 if (room.timer) clearInterval(room.timer);
                 delete rooms[room.id];
             } else {
-                if (room.state !== 'LOBBY') {
+                if (stateBefore !== 'LOBBY') {
                     if (room.players.length < 2) {
+                        // Not enough players to continue
                         if (room.timer) clearInterval(room.timer);
                         room.state = 'LOBBY';
                         room.broadcast("state_update", { state: 'LOBBY' });
                     } else if (wasDrawer) {
+                        // Current drawer left - IMMEDIATELY end turn to skip to next
                         if (room.timer) clearInterval(room.timer);
                         room.endTurn();
                     }
