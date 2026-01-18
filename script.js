@@ -384,9 +384,13 @@ function renderPlayers(players, drawerId, state) {
 
         el.innerHTML = `
             <div class="player-rank">#${rank}</div>
-            <div class="player-name">${p.name} ${myId === p.id ? '(You)' : ''}</div>
-            <div class="player-score">${p.score}</div>
-            <div class="drawer-icon">✏️</div>
+            <div class="player-details" style="flex: 1; min-width: 0; text-align: left; padding-left: 10px;">
+                <div class="name-row" style="display: flex; align-items: center; gap: 5px;">
+                    <div class="player-name">${p.name} ${myId === p.id ? '(You)' : ''}</div>
+                    <div class="drawer-icon">✏️</div>
+                </div>
+                <div class="player-score" style="font-size: 0.8rem; color: #666;">Points: ${p.score}</div>
+            </div>
         `;
         ui.playerList.appendChild(el);
     });

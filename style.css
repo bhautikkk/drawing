@@ -333,22 +333,23 @@ button:hover::after {
     padding: 10px;
     border-radius: 8px;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    /* Changed to row for rank + details */
+    align-items: center;
     position: relative;
     box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
-    /* Card look */
     transition: transform 0.2s;
     border: 2px solid #eee;
+    margin-bottom: 8px;
 }
 
 .player-card.active-drawer {
     border: 3px solid #f1c40f;
-    /* Gold border for drawer */
+    background: #fff9c4;
 }
 
 .player-card.guessed {
     background: #a8df65;
-    /* Green for guessed */
 }
 
 .player-name {
@@ -365,15 +366,29 @@ button:hover::after {
 }
 
 .drawer-icon {
-    position: absolute;
-    right: 10px;
-    top: 10px;
     display: none;
+    margin-left: 5px;
+    font-size: 1rem;
 }
 
 .active-drawer .drawer-icon {
-    display: block;
+    display: inline-block;
+    animation: bounce 1s infinite;
 }
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+
 
 /* Center: Canvas */
 #canvas-area {
@@ -386,7 +401,8 @@ button:hover::after {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
+    overflow: visible;
+    /* Log: Allow palette to pop out */
 }
 
 canvas {
@@ -395,6 +411,8 @@ canvas {
     touch-action: none;
     width: 100%;
     height: 100%;
+    border-radius: 10px;
+    /* Log: Maintain rounded look */
 }
 
 /* Tools (Floating or Bottom) */
@@ -455,6 +473,8 @@ canvas {
 /* Palette */
 .color-wrapper {
     position: relative;
+    z-index: 1001;
+    /* Ensure higher than canvas */
 }
 
 .palette {
@@ -469,6 +489,8 @@ canvas {
     grid-template-columns: repeat(4, 1fr);
     gap: 5px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    z-index: 1002;
+    /* Ensure on top */
 }
 
 .palette.hidden {
