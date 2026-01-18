@@ -468,20 +468,111 @@ canvas {
 
 /* Mobile Responsive */
 @media (max-width: 768px) {
+    body {
+        overscroll-behavior: none;
+        /* Prevent pull-to-refresh */
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    .menu-content,
+    .lobby-content {
+        width: 95%;
+        padding: 20px;
+    }
+
+    #game-header {
+        height: 50px;
+        padding: 0 10px;
+        font-size: 0.8rem;
+    }
+
+    #word-display {
+        font-size: 1.2rem;
+        letter-spacing: 2px;
+    }
+
+    #timer-container {
+        font-size: 1.2rem;
+    }
+
     #game-container {
         flex-direction: column;
+        padding: 5px;
+        gap: 5px;
     }
 
     #players-sidebar {
         width: 100%;
-        height: 80px;
+        height: 70px;
         flex-direction: row;
         overflow-x: auto;
+        overflow-y: hidden;
+        flex-shrink: 0;
+        order: 1;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .player-card {
+        min-width: 80px;
+        max-width: 100px;
+        padding: 5px;
+        flex-shrink: 0;
+    }
+
+    #canvas-area {
+        flex: 1;
+        order: 2;
+        min-height: 250px;
+        /* Ensure minimum drawing space */
+        border-radius: 5px;
+    }
+
+    #drawing-tools {
+        position: absolute;
+        bottom: 5px;
+        padding: 5px 10px;
+        gap: 8px;
+        width: 95%;
+        max-width: none;
+        flex-wrap: wrap;
+        justify-content: center;
+        border-radius: 10px;
+    }
+
+    .tool-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    #brush-size {
+        width: 60px;
     }
 
     #chat-sidebar {
-        height: 150px;
+        height: 120px;
+        /* Reduced height for chat on mobile */
         width: 100%;
+        order: 3;
+        flex-shrink: 0;
+    }
+
+    .palette {
+        grid-template-columns: repeat(6, 1fr);
+        bottom: 60px;
+    }
+
+    .overlay {
+        width: 95%;
+        padding: 15px;
+    }
+
+    .options-grid {
+        flex-wrap: wrap;
+        justify-content: center;
     }
 }
 
