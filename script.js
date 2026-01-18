@@ -81,9 +81,9 @@ function init() {
             if (!name) return showError("Enter a name!");
 
             socket.emit('create_room', {
-                players: parseInt(maxPlayers) || 8,
+                players: Math.min(10, parseInt(maxPlayers) || 8),
                 username: name,
-                rounds: parseInt(rounds) || 5,
+                rounds: Math.min(10, parseInt(rounds) || 5),
                 drawingTime: parseInt(time) || 60,
                 isPublic: (type === 'public')
             });

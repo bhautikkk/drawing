@@ -481,7 +481,11 @@ io.on('connection', (socket) => {
 
     socket.on('create_room', ({ players, username, rounds, drawingTime, isPublic }) => {
         const roomId = generateRoomId();
-        const room = new GameRoom(roomId, parseInt(players), username, socket.id, parseInt(rounds) || 5, parseInt(drawingTime) || 60, isPublic);
+        // Strict server-side clamping: Max 10 players, Max 10 rounds
+        const safePlayers = Math.min(10, Math.max(2, parseInt(players) || 8));
+        const safeRounds = Math.min(10, Math.max(1, parseInt(rounds) || 5));
+
+        const room = new GameRoom(roomId, safePlayers, username, socket.id, safeRounds, parseInt(drawingTime) || 60, isPublic);
         rooms[roomId] = room;
 
         socket.join(roomId);
