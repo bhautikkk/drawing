@@ -329,6 +329,9 @@ class GameRoom {
             timeLeft: GAME_SETTINGS.TIME_CHOOSING
         });
 
+        // FIX: Broadcast player list to update pencil icon immediately
+        this.broadcastPlayerList();
+
         io.to(drawer.id).emit("choose_word", words);
 
         this.startTimer(GAME_SETTINGS.TIME_CHOOSING, () => {
