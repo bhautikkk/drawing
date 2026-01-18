@@ -33,11 +33,13 @@
                     </div>
                     <div class="setting-item">
                         <label for="rounds-input" class="setting-label">Rounds</label>
-                        <input type="number" id="rounds-input" value="5" min="1" max="10" class="setting-input">
+                        <input type="number" id="rounds-input" value="5" min="1" max="10" class="setting-input"
+                            oninput="if(parseInt(this.value)>10) this.value=10; if(this.value.length>2) this.value=this.value.slice(0,2);">
                     </div>
                     <div class="setting-item">
                         <label for="players-input" class="setting-label">Max Players</label>
-                        <input type="number" id="players-input" value="8" min="2" max="10" class="setting-input">
+                        <input type="number" id="players-input" value="8" min="2" max="10" class="setting-input"
+                            oninput="if(parseInt(this.value)>10) this.value=10; if(this.value.length>2) this.value=this.value.slice(0,2);">
                     </div>
                     <div class="setting-item">
                         <label for="time-input" class="setting-label">Draw Time (sec)</label>
