@@ -606,6 +606,25 @@ canvas {
     }
 }
 
+/* Ad Slots */
+.ad-slot {
+    width: 100%;
+    max-width: 728px;
+    /* Leaderboard size */
+    height: 90px;
+    /* Standard height */
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px dashed rgba(255, 255, 255, 0.5);
+    margin: 20px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #eee;
+    font-size: 0.9rem;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
 .options-grid {
     display: flex;
     gap: 10px;
