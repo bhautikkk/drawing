@@ -1,633 +1,509 @@
 const socket = io();
 
-// Screens
-const mainMenu = document.getElementById('main-menu');
-const lobbyScreen = document.getElementById('lobby-screen');
-const drawingScreen = document.getElementById('drawing-screen');
+// --- Elements ---
+const screens = {
+    menu: document.getElementById('main-menu'),
+    lobby: document.getElementById('lobby-screen'),
+    game: document.getElementById('drawing-screen')
+};
 
-// UI Elements
-const createBtns = document.querySelectorAll('.create-btn');
-const joinBtn = document.getElementById('join-btn');
-const usernameInput = document.getElementById('username-input');
-const roomCodeInput = document.getElementById('room-code-input');
-const roomCodeDisplay = document.getElementById('room-code-display');
-const copyCodeBtn = document.getElementById('copy-code-btn');
-const playerCount = document.getElementById('player-count');
-const errorMsg = document.getElementById('menu-error');
+const ui = {
+    timer: document.getElementById('timer'),
+    word: document.getElementById('word-display'),
+    round: document.getElementById('round-info'),
+    playerList: document.getElementById('players-sidebar'),
+    chatMessages: document.getElementById('chat-messages'),
+    chatInput: document.getElementById('chat-input'),
+    canvas: document.getElementById('drawing-canvas'),
+    tools: document.getElementById('drawing-tools'),
+    overlays: {
+        word: document.getElementById('word-selection-overlay'),
+        wordOptions: document.getElementById('word-options'),
+        gameOver: document.getElementById('game-over-overlay'),
+        podium: document.getElementById('podium')
+    },
+    menu: {
+        username: document.getElementById('username-input'),
+        createBtns: document.querySelectorAll('.create-btn'),
+        joinBtn: document.getElementById('join-btn'),
+        codeInput: document.getElementById('room-code-input'),
+        error: document.getElementById('menu-error')
+    },
+    lobby: {
+        code: document.getElementById('room-code-display'),
+        copy: document.getElementById('copy-code-btn'),
+        players: document.getElementById('lobby-player-list'),
+        count: document.getElementById('player-count'),
+        startBtn: document.getElementById('start-game-btn')
+    }
+};
 
-// Game UI
-const canvas = document.getElementById('drawing-canvas');
-const ctx = canvas.getContext('2d');
-// const colorOptions = document.querySelectorAll('.color-option'); // Moved below
-const clearBtn = document.getElementById('clear-btn');
-const eraserBtn = document.getElementById('eraser-btn');
-const topBar = document.getElementById('top-bar');
-// const spectatorOverlay = document.getElementById('spectator-overlay'); // Removed
-const myTurnBtn = document.getElementById('my-turn-btn');
-const exitBtn = document.getElementById('exit-btn');
+const tools = {
+    colorBtn: document.getElementById('current-color-btn'),
+    palette: document.getElementById('color-palette'),
+    size: document.getElementById('brush-size'),
+    eraser: document.getElementById('eraser-btn'),
+    clear: document.getElementById('clear-btn'),
+    undo: document.getElementById('undo-btn'),
+    options: document.querySelectorAll('.color-option')
+};
 
-// New Toolbar Elements
-const currentColorBtn = document.getElementById('current-color-btn');
-const colorPalette = document.getElementById('color-palette');
-const brushSizeInput = document.getElementById('brush-size');
-const undoBtn = document.getElementById('undo-btn');
-const redoBtn = document.getElementById('redo-btn');
-// Re-select color options as they are in new container
-const colorOptions = document.querySelectorAll('.color-option');
-const toolsContainer = document.getElementById('drawing-tools');
+const ctx = ui.canvas.getContext('2d');
 
-// Modal Elements
-const turnModal = document.getElementById('turn-modal');
-const acceptTurnBtn = document.getElementById('accept-turn-btn');
-const rejectTurnBtn = document.getElementById('reject-turn-btn');
-const gameRoomCode = document.getElementById('game-room-code');
-const playersListContainer = document.getElementById('players-list');
-
-// State
+// --- State ---
+let myId = null;
+let isDrawer = false;
 let isDrawing = false;
-let isMyTurn = false;
-let currentColor = '#000000';
-let currentLineWidth = 5;
-let lastX = 0;
-let myRoomId = null;
-let currentPlayers = []; // Store players list
-let strokeHistory = []; // Array of {type, color, width, path: [{x, y}, ...]}
-let redoStack = [];
-let currentPath = []; // Temp storage for current stroke path
+let canDraw = false;
+let currentPos = { x: 0, y: 0 };
+let currentSettings = {
+    color: '#000000',
+    size: 5,
+    isEraser: false
+};
 
-// --- Event Listeners: Main Menu ---
+// --- Initialization ---
+function init() {
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
-createBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        const username = usernameInput.value.trim();
-        if (!username) {
-            errorMsg.textContent = "Please enter your name first!";
-            return;
+    // Menu Events
+    // Menu Events
+    const createBtn = document.getElementById('create-room-btn');
+    if (createBtn) {
+        createBtn.addEventListener('click', () => {
+            const name = ui.menu.username.value.trim();
+            const rounds = document.getElementById('rounds-input').value;
+            const maxPlayers = document.getElementById('players-input').value;
+            const type = document.getElementById('room-type').value;
+
+            if (!name) return showError("Enter a name!");
+
+            socket.emit('create_room', {
+                players: parseInt(maxPlayers) || 8,
+                username: name,
+                rounds: parseInt(rounds) || 5,
+                isPublic: (type === 'public')
+            });
+        });
+    }
+
+    const quickJoinBtn = document.getElementById('quick-join-btn');
+    if (quickJoinBtn) {
+        quickJoinBtn.addEventListener('click', () => {
+            const name = ui.menu.username.value.trim();
+            if (!name) return showError("Enter a name!");
+            socket.emit('quick_join', { username: name });
+        });
+    }
+
+    ui.menu.joinBtn.addEventListener('click', () => {
+        const name = ui.menu.username.value.trim();
+        const code = ui.menu.codeInput.value.trim();
+        if (!name) return showError("Enter a name!");
+        if (!code) return showError("Enter a code!");
+        socket.emit('join_room', { code, username: name });
+    });
+
+    ui.lobby.copy.addEventListener('click', () => {
+        navigator.clipboard.writeText(ui.lobby.code.innerText);
+    });
+
+    ui.lobby.startBtn.addEventListener('click', () => {
+        socket.emit('start_game');
+    });
+
+    // Chat Events
+    ui.chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const text = ui.chatInput.value.trim();
+            if (text) {
+                socket.emit('send_message', text);
+                ui.chatInput.value = '';
+            }
         }
-        const players = btn.dataset.players;
-        socket.emit('create_room', { players, username });
     });
-});
 
-joinBtn.addEventListener('click', () => {
-    const username = usernameInput.value.trim();
-    if (!username) {
-        errorMsg.textContent = "Please enter your name first!";
-        return;
-    }
-    const code = roomCodeInput.value.trim();
+    // Drawing Events
+    ui.canvas.addEventListener('mousedown', startDraw);
+    ui.canvas.addEventListener('mousemove', draw);
+    ui.canvas.addEventListener('mouseup', endDraw);
+    ui.canvas.addEventListener('mouseout', endDraw);
 
-    if (code.length === 6) {
-        socket.emit('join_room', { code, username });
-    } else {
-        errorMsg.textContent = "Please enter a valid 6-digit code";
-    }
-});
+    // Touch Support
+    ui.canvas.addEventListener('touchstart', startDraw, { passive: false });
+    ui.canvas.addEventListener('touchmove', draw, { passive: false });
+    ui.canvas.addEventListener('touchend', endDraw);
 
-copyCodeBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(roomCodeDisplay.textContent).then(() => {
-        copyCodeBtn.textContent = "Copied!";
-        setTimeout(() => copyCodeBtn.textContent = "Copy", 2000);
+    // Tools
+    tools.size.addEventListener('input', (e) => currentSettings.size = e.target.value);
+
+    tools.colorBtn.addEventListener('click', () => tools.palette.classList.toggle('hidden'));
+
+    tools.options.forEach(opt => {
+        opt.addEventListener('click', () => {
+            setColor(opt.dataset.color);
+            tools.palette.classList.add('hidden');
+        });
     });
-});
+
+    tools.eraser.addEventListener('click', () => {
+        currentSettings.isEraser = !currentSettings.isEraser;
+        tools.eraser.classList.toggle('active', currentSettings.isEraser);
+    });
+
+    tools.clear.addEventListener('click', () => {
+        if (canDraw) {
+            ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
+            socket.emit('clear');
+        }
+    });
+
+    // Handle Resize Logic safer
+    setTimeout(resizeCanvas, 500);
+}
+
+function resizeCanvas() {
+    // Only resize if game screen is active
+    if (screens.game.classList.contains('active')) {
+        const parent = ui.canvas.parentElement;
+        if (parent.clientWidth && parent.clientHeight) {
+            ui.canvas.width = parent.clientWidth;
+            ui.canvas.height = parent.clientHeight;
+
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+    }
+}
+
+function showError(msg) {
+    ui.menu.error.textContent = msg;
+}
+
+function showScreen(screenName) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[screenName].classList.add('active');
+    if (screenName === 'game') setTimeout(resizeCanvas, 100);
+}
 
 // --- Socket Events ---
 
-socket.on('room_created', (roomId) => {
-    myRoomId = roomId;
-    showScreen(lobbyScreen);
-    roomCodeDisplay.textContent = roomId;
-    playerCount.textContent = "Waiting for players...";
+socket.on('connect', () => {
+    myId = socket.id;
+    console.log("Connected", myId);
 });
 
-socket.on('joined_room', (roomId) => {
-    myRoomId = roomId;
-    showScreen(lobbyScreen);
-    roomCodeDisplay.textContent = roomId;
-    playerCount.textContent = "Connected! Waiting for host...";
+socket.on('room_created', (id) => {
+    ui.lobby.code.textContent = id;
+    showScreen('lobby');
 });
 
-socket.on('error', (msg) => {
-    errorMsg.textContent = msg;
+socket.on('joined_room', (id) => {
+    ui.lobby.code.textContent = id;
+    showScreen('lobby');
 });
 
-socket.on('game_started', (data) => {
-    showScreen(drawingScreen);
-    resizeCanvas();
-    updateRole(data.drawerId);
-
-    // Update game info
-    gameRoomCode.textContent = myRoomId;
-    renderPlayerList(data.players, data.drawerId);
-});
-
-socket.on('game_state', (data) => {
-    showScreen(drawingScreen);
-    resizeCanvas();
-    updateRole(data.drawerId);
-
-    // Update game info
-    gameRoomCode.textContent = myRoomId;
-    renderPlayerList(data.players, data.drawerId);
-});
+socket.on('error', (msg) => showError(msg));
 
 socket.on('update_players', (data) => {
-    renderPlayerList(data.players, data.drawerId);
-});
+    // data.players = list of players
+    // data.drawerId = current drawer
+    // data.state = game state
 
-// --- Role Management ---
+    renderPlayers(data.players, data.drawerId, data.state);
 
-// --- Role Management ---
-
-function updateRole(drawerId) {
-    // Reset tools and history for EVERYONE when turn changes
-    resetTools();
-    resetHistory();
-
-    if (socket.id === drawerId) {
-        // I am the drawer
-        isMyTurn = true;
-
-        // spectatorOverlay.classList.remove('active'); // Removed overlay
-        topBar.style.pointerEvents = 'auto';
-
-        // Show drawing tools, hide "My Turn" button
-        if (toolsContainer) toolsContainer.style.display = 'flex';
-        myTurnBtn.style.display = 'none';
-
-        // alert("Your Turn to Draw!"); // Removed alert
-    } else {
-        // I am a spectator
-        isMyTurn = false;
-        // spectatorOverlay.classList.add('active'); // Removed overlay
-        // topBar.style.pointerEvents = 'none'; // Don't disable all events, we need the button!
-
-        // Hide drawing tools, show "My Turn" button
-        if (toolsContainer) toolsContainer.style.display = 'none';
-        myTurnBtn.style.display = 'inline-block';
-    }
-}
-
-function resetHistory() {
-    strokeHistory = [];
-    redoStack = [];
-}
-
-function renderPlayerList(players, currentDrawerId) {
-    if (!players) return;
-    currentPlayers = players; // Update global state
-    playersListContainer.innerHTML = ''; // Clear list
-    players.forEach(player => {
-        const playerItem = document.createElement('div');
-        playerItem.classList.add('player-item');
-        if (player.id === currentDrawerId) {
-            playerItem.classList.add('drawer');
-        }
-
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = player.name;
-
-        const brushIcon = document.createElement('div');
-        brushIcon.classList.add('brush-icon');
-
-        playerItem.appendChild(nameSpan);
-        playerItem.appendChild(brushIcon);
-        playersListContainer.appendChild(playerItem);
-    });
-}
-
-// --- Turn Management ---
-
-myTurnBtn.addEventListener('click', () => {
-    socket.emit('request_turn');
-    myTurnBtn.textContent = "Request Sent...";
-    myTurnBtn.disabled = true;
-
-    // Timeout fallback if server doesn't respond
-    setTimeout(() => {
-        if (myTurnBtn.textContent === "Request Sent...") {
-            myTurnBtn.textContent = "My Turn";
-            myTurnBtn.disabled = false;
-            showToast("Request timed out. Try again.");
-        }
-    }, 5000);
-});
-
-exitBtn.addEventListener('click', () => {
-    if (confirm("Are you sure you want to exit?")) {
-        socket.emit('leave_room');
-        location.reload();
+    // Check if game started
+    if (data.state !== 'LOBBY' && !screens.game.classList.contains('active')) {
+        showScreen('game');
     }
 });
 
-socket.on('turn_requested', (data) => {
-    if (isMyTurn) {
-        turnModal.classList.add('active');
-        // Retrieve name from data, fallback to "Friend" if missing
-        const requesterName = data.requesterName || "Friend";
-        turnModal.querySelector('p').textContent = `${requesterName} wants to draw!`;
+socket.on('state_update', (data) => {
+    // data: { state, round, drawerId, drawerName, timeLeft, word, maskedWord }
 
-        // Handle response
-        const handleAccept = () => {
-            socket.emit('turn_response', { requesterId: data.requesterId, accepted: true });
-            turnModal.classList.remove('active');
-            cleanup();
-        };
-
-        const handleReject = () => {
-            socket.emit('turn_response', { requesterId: data.requesterId, accepted: false });
-            turnModal.classList.remove('active');
-            cleanup();
-        };
-
-        const cleanup = () => {
-            acceptTurnBtn.removeEventListener('click', handleAccept);
-            rejectTurnBtn.removeEventListener('click', handleReject);
-        };
-
-        acceptTurnBtn.addEventListener('click', handleAccept);
-        rejectTurnBtn.addEventListener('click', handleReject);
+    // Ensure we are on the game screen if game is running
+    if (data.state !== 'LOBBY' && !screens.game.classList.contains('active')) {
+        showScreen('game');
     }
-});
 
-socket.on('turn_request_sent', () => {
-    if (myTurnBtn.textContent === "Request Sent...") {
-        // Optionally update text or UI
+    // Update Timer
+    if (data.timeLeft) updateTimer(data.timeLeft);
+
+    // Update State UI
+    if (data.state === 'CHOOSING') {
+        ui.word.textContent = `${data.drawerName} is choosing...`;
+        canDraw = false;
+        ui.tools.classList.add('disabled');
+        ui.overlays.word.classList.add('hidden'); // Ensure hidden for guessers
     }
-});
+    else if (data.state === 'DRAWING') {
+        canDraw = (myId === data.drawerId); // Only drawer can draw
+        ui.tools.classList.toggle('disabled', !canDraw);
 
-socket.on('turn_change', (data) => {
-    updateRole(data.drawerId);
-    // Reset button state if previously disabled
-    myTurnBtn.textContent = "My Turn!";
-    myTurnBtn.disabled = false;
-
-    // Update player list visuals (we might not have the full list here, but we can assume list unchanged)
-    // Actually, we need to update the indicators. The simplest way relies on finding the elements.
-    // Or we could request state update, but better to just toggle classes if we can.
-    // However, recreating is safest if we had the list. 
-    // Since we don't receive the list in turn_change, we can iterate DOM elements.
-    // BUT we don't have IDs on elements. Let's rely on finding by text? No, names can be diff.
-    // Best: Server should probably just send the list again or we store it locally.
-    // Quick fix: Update styles based on "drawerId" comparison if we stored players?
-    // Let's modify render loop or just re-request state? 
-    // Actually, let's just highlight the new drawer based on the logic we can infer?
-    // Wait, the client doesn't persist the players list variable globally.
-    // I should fix that. I'll make `currentPlayers` a global.
-
-    if (currentPlayers) {
-        renderPlayerList(currentPlayers, data.drawerId);
-    }
-});
-
-socket.on('turn_rejected', (data) => {
-    const rejectorName = data.rejectorName || "The drawer";
-    showToast(`${rejectorName} rejected you`);
-
-    // Cooldown
-    const COOLDOWN_TIME = 25;
-    let remainingTime = COOLDOWN_TIME;
-
-    myTurnBtn.disabled = true;
-    myTurnBtn.textContent = `Wait ${remainingTime}s`;
-
-    const interval = setInterval(() => {
-        remainingTime--;
-        if (remainingTime > 0) {
-            myTurnBtn.textContent = `Wait ${remainingTime}s`;
+        if (canDraw) {
+            ui.word.textContent = `DRAW THIS: ${data.word || "???"}`; // Should be sent via 'your_word' usually
         } else {
-            clearInterval(interval);
-            myTurnBtn.textContent = "My Turn!";
-            myTurnBtn.disabled = false;
+            ui.word.textContent = data.maskedWord || "_ _ _";
         }
-    }, 1000);
+    }
+    else if (data.state === 'INTERMISSION') {
+        ui.word.textContent = `The word was: ${data.word}`;
+        canDraw = false;
+        ui.overlays.word.classList.add('hidden');
+    }
+
+    if (data.round) ui.round.textContent = `Round ${data.round}`;
 });
 
-function showToast(message) {
-    const toast = document.getElementById("notification-toast");
-    toast.textContent = message;
-    toast.classList.remove("hidden");
+socket.on('choose_word', (words) => {
+    // I am the drawer, show modal
+    const container = ui.overlays.wordOptions;
+    container.innerHTML = '';
 
-    setTimeout(() => {
-        toast.classList.add("hidden");
-    }, 2000);
+    words.forEach(word => {
+        const btn = document.createElement('button');
+        btn.textContent = word;
+        btn.className = 'word-option-btn';
+        btn.onclick = () => {
+            socket.emit('word_selected', word);
+            ui.overlays.word.classList.add('hidden');
+        };
+        container.appendChild(btn);
+    });
+
+    ui.overlays.word.classList.remove('hidden');
+});
+
+socket.on('your_word', (word) => {
+    ui.word.textContent = `Word: ${word}`;
+});
+
+socket.on('timer_update', (time) => {
+    updateTimer(time);
+});
+
+socket.on('draw', (data) => {
+    drawRemote(data);
+});
+
+socket.on('clear', () => {
+    ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
+});
+
+socket.on('chat_message', (data) => {
+    addChatMessage(data.name, data.text, data.type);
+});
+
+socket.on('player_correct', (data) => {
+    addChatMessage(data.name, "guessed the word!", "correct");
+});
+
+socket.on('close_guess', (guess) => {
+    addChatMessage("System", `'${guess}' is close!`, "system");
+});
+
+socket.on('game_over', (players) => {
+    ui.overlays.gameOver.classList.remove('hidden');
+    const podium = ui.overlays.podium;
+    podium.innerHTML = '';
+
+    players.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.textContent = `#${i + 1} ${p.name} - ${p.score}`;
+        div.style.fontSize = i === 0 ? '1.5rem' : '1rem';
+        div.style.fontWeight = i === 0 ? 'bold' : 'normal';
+        podium.appendChild(div);
+    });
+
+    document.getElementById('return-home-btn').onclick = () => location.reload();
+});
+
+
+// --- Helpers ---
+
+function updateTimer(time) {
+    ui.timer.textContent = time;
 }
 
-function resetTools() {
-    // Default values
-    currentColor = '#000000';
-    currentLineWidth = 5;
+function renderPlayers(players, drawerId, state) {
+    // 1. Render in Game Sidebar
+    ui.playerList.innerHTML = '';
+    players.forEach(p => {
+        const el = document.createElement('div');
+        el.className = 'player-card';
+        if (p.id === drawerId) el.classList.add('active-drawer');
+        if (p.guessed) el.classList.add('guessed');
 
-    // Update UI
-    currentColorBtn.style.backgroundColor = currentColor;
-    brushSizeInput.value = currentLineWidth;
+        el.innerHTML = `
+            <div class="player-name">${p.name} ${myId === p.id ? '(You)' : ''}</div>
+            <div class="player-score">Points: ${p.score}</div>
+            <div class="drawer-icon">✏️</div>
+        `;
+        ui.playerList.appendChild(el);
+    });
 
-    // Reset Eraser state
-    if (eraserBtn) eraserBtn.classList.remove('active');
+    // 2. Render in Lobby (if applicable)
+    if (state === 'LOBBY') {
+        ui.lobby.players.innerHTML = '';
+        players.forEach(p => {
+            const pad = document.createElement('div');
+            pad.className = 'lobby-player-item';
+            pad.textContent = p.name;
+            ui.lobby.players.appendChild(pad);
+        });
 
-    // Update Context
-    updateContext();
+        // Update count text if needed
+        ui.lobby.count.textContent = `Players: ${players.length} / ${screens.menu.querySelector('.create-btn[data-players="' + players.length + '"]')?.dataset?.players || "waiting"}`;
+
+        // Actually, serverside sends players list, we need to know maxPlayers too if we want to show ratio "1/2" correctly
+        // But for now, just showing "PlayersConnected: X" is fine.
+        ui.lobby.count.textContent = `Players Connected: ${players.length}`;
+
+        // Show Start Button if I am the host (first player?) and players >= 2
+        // We assume first player in list is host for simplicity, or we can check via ID if server sent hostId
+        // Server sends players array. Usually p[0] is host.
+        const amHost = players[0].id === myId;
+        if (amHost && players.length >= 2) {
+            ui.lobby.startBtn.classList.remove('hidden');
+        } else {
+            ui.lobby.startBtn.classList.add('hidden');
+        }
+    }
+}
+
+function addChatMessage(name, text, type) {
+    const div = document.createElement('div');
+    div.className = 'chat-msg';
+    if (type === 'correct') div.classList.add('msg-correct');
+    if (type === 'system') div.classList.add('msg-system');
+
+    const b = document.createElement('b');
+    b.textContent = name ? `${name}: ` : '';
+
+    const span = document.createElement('span');
+    span.textContent = text;
+
+    div.appendChild(b);
+    div.appendChild(span);
+
+    ui.chatMessages.appendChild(div);
+    ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight;
+}
+
+function setColor(hex) {
+    currentSettings.color = hex;
+    currentSettings.isEraser = false;
+    tools.eraser.classList.remove('active');
+    tools.colorBtn.style.backgroundColor = hex;
 }
 
 // --- Drawing Logic ---
 
-// Canvas Setup
-function resizeCanvas() {
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight - topBar.clientHeight;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = currentLineWidth;
-    ctx.strokeStyle = currentColor;
-}
+function startDraw(e) {
+    console.log("startDraw called. CanDraw:", canDraw);
+    if (!canDraw) return;
+    if (e.cancelable) e.preventDefault();
 
-window.addEventListener('resize', resizeCanvas);
-
-// --- Drawing Tools Logic ---
-
-// Size Slider
-brushSizeInput.addEventListener('input', (e) => {
-    currentLineWidth = e.target.value;
-    ctx.lineWidth = currentLineWidth; // Fix: Update context immediately
-});
-
-// Color Picker Toggle
-currentColorBtn.style.backgroundColor = currentColor; // Init bg
-currentColorBtn.addEventListener('click', () => {
-    if (!isMyTurn) return;
-    colorPalette.classList.toggle('hidden');
-});
-
-// Color Selection
-colorOptions.forEach(option => {
-    option.addEventListener('click', (e) => {
-        if (!isMyTurn) return; // Should be blocked by UI but safety check
-        e.stopPropagation(); // Prevent closing immediately if bubbled? No, usually fine.
-
-        const color = option.dataset.color;
-
-        // Handle White (Eraser logic via color, or just color)
-        // If color is white, effectively eraser if we assume white bg.
-        // But user has separate eraser button. 
-        // Let's just treat standard color selection.
-
-        currentColor = color;
-        currentColorBtn.style.backgroundColor = color;
-        colorPalette.classList.add('hidden'); // Close palette
-
-        // Reset Eraser style
-        eraserBtn.classList.remove('active');
-
-        updateContext();
-    });
-});
-
-// Close palette if clicked outside
-document.addEventListener('click', (e) => {
-    if (!currentColorBtn.contains(e.target) && !colorPalette.contains(e.target)) {
-        colorPalette.classList.add('hidden');
+    // Safety check for dimensions
+    if (ui.canvas.width === 0 || ui.canvas.height === 0) {
+        console.warn("Canvas dimensions 0, resizing...");
+        resizeCanvas();
     }
-});
 
-// Eraser
-eraserBtn.addEventListener('click', () => {
-    if (!isMyTurn) return;
-    currentColor = '#FFFFFF';
-    currentLineWidth = 20; // Default eraser size, but slider overrides next movement?
-    // Let's set slider to 20?
-    brushSizeInput.value = 20;
-
-    // Highlight eraser
-    eraserBtn.classList.add('active');
-    updateContext();
-});
-
-function updateContext() {
-    ctx.strokeStyle = currentColor;
-    ctx.lineWidth = currentLineWidth;
-}
-
-clearBtn.addEventListener('click', () => {
-    if (!isMyTurn) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    strokeHistory = []; // Clear history
-    redoStack = [];
-    socket.emit('clear');
-});
-
-// Undo
-undoBtn.addEventListener('click', () => {
-    if (!isMyTurn || strokeHistory.length === 0) return;
-
-    // Pop last stroke
-    const lastStroke = strokeHistory.pop();
-    redoStack.push(lastStroke);
-
-    // Redraw
-    redrawCanvas();
-});
-
-// Redo
-redoBtn.addEventListener('click', () => {
-    if (!isMyTurn || redoStack.length === 0) return;
-
-    // Pop from redo
-    const stroke = redoStack.pop();
-    strokeHistory.push(stroke);
-
-    // Redraw
-    redrawCanvas();
-});
-
-function redrawCanvas() {
-    // 1. Clear Local
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 2. Clear Remote (Still good to send clear signal first to be safe, though sync overrides)
-    // socket.emit('clear'); // Optional if sync covers it, but keeps state clean. Let's keep it or just reliance on sync.
-    // Actually, sync replaces the whole image so clear isn't strictly needed on remote if we send full image.
-    // But let's keep it simple.
-
-    // 3. Replay History Locally
-    strokeHistory.forEach(stroke => {
-        drawStrokeLocally(stroke);
-    });
-
-    // 4. Sync Final State to Network (Fix for "wipe" glitch)
-    const imageData = canvas.toDataURL();
-    socket.emit('sync_screen', { image: imageData });
-}
-
-function drawStrokeLocally(stroke) {
-    if (stroke.path.length < 1) return;
-
-    ctx.beginPath();
-    ctx.strokeStyle = stroke.color;
-    ctx.lineWidth = stroke.width;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    ctx.moveTo(stroke.path[0].x, stroke.path[0].y);
-    for (let i = 1; i < stroke.path.length; i++) {
-        ctx.lineTo(stroke.path[i].x, stroke.path[i].y);
-    }
-    ctx.stroke();
-}
-
-// Input Handling
-function getCoordinates(e) {
-    if (e.touches && e.touches[0]) {
-        const rect = canvas.getBoundingClientRect();
-        return {
-            x: e.touches[0].clientX - rect.left,
-            y: e.touches[0].clientY - rect.top
-        };
-    }
-    return {
-        x: e.offsetX,
-        y: e.offsetY
-    };
-}
-
-function startDrawing(e) {
-    if (!isMyTurn) return;
     isDrawing = true;
-    const coords = getCoordinates(e);
-    lastX = coords.x;
-    lastY = coords.y;
+    const { x, y } = getPos(e);
+    console.log("Pos:", x, y);
+    currentPos = { x, y };
 
-    // Start Recording
-    currentPath = [{ x: coords.x, y: coords.y }];
-    redoStack = []; // Clear redo on new action
+    // Draw dot using arc for better visibility
+    drawDot(x, y, currentSettings.color, currentSettings.size, currentSettings.isEraser);
 
     socket.emit('draw', {
         type: 'start',
-        x: coords.x,
-        y: coords.y,
-        color: currentColor,
-        width: currentLineWidth,
-        w: canvas.width,
-        h: canvas.height
+        x, y,
+        color: currentSettings.color,
+        size: currentSettings.size,
+        isEraser: currentSettings.isEraser,
+        w: ui.canvas.width,
+        h: ui.canvas.height
     });
+}
+
+function drawDot(x, y, color, size, isEraser) {
+    ctx.beginPath();
+    ctx.fillStyle = isEraser ? '#ffffff' : color;
+    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.closePath();
 }
 
 function draw(e) {
-    if (!isDrawing || !isMyTurn) return;
-    e.preventDefault();
+    if (!isDrawing || !canDraw) return;
+    if (e.cancelable) e.preventDefault();
 
-    const coords = getCoordinates(e);
+    const { x, y } = getPos(e);
 
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(coords.x, coords.y);
-    ctx.stroke();
-
-    // Record
-    // Store only if moved significance? No, straight lines are fine.
-    currentPath.push({ x: coords.x, y: coords.y });
+    drawRec({ x, y, prevX: currentPos.x, prevY: currentPos.y, color: currentSettings.color, size: currentSettings.size, isEraser: currentSettings.isEraser });
 
     socket.emit('draw', {
         type: 'drag',
-        x: coords.x,
-        y: coords.y,
-        prevX: lastX,
-        prevY: lastY
+        x, y,
+        prevX: currentPos.x,
+        prevY: currentPos.y, // Send prev to avoid gaps
+        color: currentSettings.color,
+        size: currentSettings.size,
+        isEraser: currentSettings.isEraser
     });
 
-    lastX = coords.x;
-    lastY = coords.y;
+    currentPos = { x, y };
 }
 
-function stopDrawing() {
-    if (isDrawing && isMyTurn) {
-        socket.emit('draw', { type: 'end' });
-
-        // Save Stroke
-        if (currentPath.length > 0) {
-            strokeHistory.push({
-                color: currentColor,
-                width: currentLineWidth,
-                path: currentPath
-            });
-        }
-    }
+function endDraw() {
     isDrawing = false;
-    currentPath = [];
-    ctx.beginPath();
 }
 
-// Socket Drawing Events
-socket.on('draw', (data) => {
-    if (isMyTurn) return; // Ignore if I am drawing (shouldn't happen)
-
+function drawRemote(data) {
+    // data: { x, y, prevX, prevY, color, size, isEraser, type }
     if (data.type === 'start') {
-        ctx.strokeStyle = data.color;
-        ctx.lineWidth = data.width;
-        lastX = data.x;
-        lastY = data.y;
-    } else if (data.type === 'drag') {
-        ctx.beginPath();
-        // Use received distinct previous coordinates if available, else fallback
-        const pX = data.prevX !== undefined ? data.prevX : lastX;
-        const pY = data.prevY !== undefined ? data.prevY : lastY;
-
-        ctx.moveTo(pX, pY);
-        ctx.lineTo(data.x, data.y);
-        ctx.stroke();
-
-        lastX = data.x;
-        lastY = data.y;
-    } else if (data.type === 'end') {
-        ctx.beginPath();
+        drawDot(data.x, data.y, data.color, data.size, data.isEraser);
+    } else {
+        drawRec(data);
     }
-});
-
-socket.on('clear', () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-});
-
-socket.on('sync_screen', (data) => {
-    if (isMyTurn) return;
-    const img = new Image();
-    img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-    };
-    img.src = data.image; // Assume data contains { image: base64 } or just data if sent directly, let's allow object
-});
-
-// New Canvas Sync Events
-socket.on('request_canvas_state', (data) => {
-    if (isMyTurn) {
-        const image = canvas.toDataURL();
-        socket.emit('send_canvas_state', {
-            image,
-            targetId: data.newPlayerId
-        });
-    }
-});
-
-socket.on('canvas_state', (data) => {
-    const img = new Image();
-    img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-    };
-    img.src = data.image;
-});
-
-// Listeners
-canvas.addEventListener('mousedown', startDrawing);
-canvas.addEventListener('mousemove', draw);
-canvas.addEventListener('mouseup', stopDrawing);
-canvas.addEventListener('mouseout', stopDrawing);
-
-canvas.addEventListener('touchstart', startDrawing);
-canvas.addEventListener('touchmove', draw);
-canvas.addEventListener('touchend', stopDrawing);
-
-// Helper
-function showScreen(screen) {
-    [mainMenu, lobbyScreen, drawingScreen].forEach(s => s.classList.remove('active'));
-    screen.classList.add('active');
 }
+
+function drawRec(data) {
+    ctx.beginPath();
+    ctx.strokeStyle = data.isEraser ? '#ffffff' : data.color;
+    ctx.lineWidth = data.size;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(data.prevX, data.prevY);
+    ctx.lineTo(data.x, data.y);
+    ctx.stroke();
+    // Context closed path removed - was causing issues with points
+}
+
+function getPos(e) {
+    const rect = ui.canvas.getBoundingClientRect();
+    let clientX, clientY;
+
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+
+    // DEBUG LOG
+    console.log(`Event: ${e.type}, X: ${clientX}, Y: ${clientY}, CanvasRect: ${rect.left},${rect.top}`);
+
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
+// Start
+init();
