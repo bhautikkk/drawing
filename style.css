@@ -614,10 +614,17 @@ canvas {
 
 .word-option-btn {
     background: #fff;
-    color: #333;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    padding: 15px 20px;
     font-size: 1.1rem;
-    padding: 15px 25px;
-    border: 2px solid transparent;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    /* FIX: Long word handling */
+    word-wrap: break-word;
+    max-width: 100%;
+    overflow-wrap: break-word;
 }
 
 .word-option-btn:hover {
@@ -672,15 +679,26 @@ canvas {
     }
 
     #game-header {
-        height: 50px;
-        padding: 0 10px;
-        font-size: 0.9rem;
-        margin: 5px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fff;
+        padding: 10px 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+        height: auto;
+        min-height: 60px;
     }
 
     #word-display {
         font-size: 1.2rem;
         letter-spacing: 3px;
+        white-space: normal;
+        overflow-wrap: break-word;
+        max-width: 100%;
+        line-height: 1.2;
     }
 
     #timer-container {
