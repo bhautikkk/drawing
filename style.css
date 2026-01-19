@@ -640,12 +640,11 @@ canvas {
     font-weight: bold;
     cursor: pointer;
     transition: all 0.2s;
-    /* FIX: Long word handling */
-    word-wrap: break-word;
-    max-width: 100%;
-    overflow-wrap: break-word;
+    white-space: nowrap;
+    /* Keep words on one line */
+    min-width: 120px;
+    /* Ensure enough width */
     color: #333;
-    /* Fix: Ensure text is visible (not white on white) */
 }
 
 .word-option-btn:hover {

@@ -515,7 +515,8 @@ function startDraw(e) {
 
     socket.emit('draw', {
         type: 'start',
-        x, y,
+        x: x / ui.canvas.width,
+        y: y / ui.canvas.height,
         color: currentSettings.color,
         size: currentSettings.size,
         isEraser: currentSettings.isEraser,
@@ -542,9 +543,10 @@ function draw(e) {
 
     socket.emit('draw', {
         type: 'drag',
-        x, y,
-        prevX: currentPos.x,
-        prevY: currentPos.y, // Send prev to avoid gaps
+        x: x / ui.canvas.width,
+        y: y / ui.canvas.height,
+        prevX: currentPos.x / ui.canvas.width,
+        prevY: currentPos.y / ui.canvas.height, // Send prev to avoid gaps
         color: currentSettings.color,
         size: currentSettings.size,
         isEraser: currentSettings.isEraser
@@ -559,10 +561,16 @@ function endDraw() {
 
 function drawRemote(data) {
     // data: { x, y, prevX, prevY, color, size, isEraser, type }
+    // Convert normalized coordinates back to local canvas size
+    const x = data.x * ui.canvas.width;
+    const y = data.y * ui.canvas.height;
+
     if (data.type === 'start') {
-        drawDot(data.x, data.y, data.color, data.size, data.isEraser);
+        drawDot(x, y, data.color, data.size, data.isEraser);
     } else {
-        drawRec(data);
+        const prevX = data.prevX * ui.canvas.width;
+        const prevY = data.prevY * ui.canvas.height;
+        drawRec({ x, y, prevX, prevY, color: data.color, size: data.size, isEraser: data.isEraser });
     }
 }
 
