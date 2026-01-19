@@ -629,31 +629,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('undo', () => {
-        const room = Object.values(rooms).find(r => r.players.some(p => p.id === socket.id));
 
-        if (room && room.getDrawer().id === socket.id && room.state === 'DRAWING') {
-            if (!room.canvasState || room.canvasState.length === 0) return;
-
-            // Find the last 'start' event (beginning of the last stroke)
-            let removeIndex = -1;
-            for (let i = room.canvasState.length - 1; i >= 0; i--) {
-                if (room.canvasState[i].type === 'start') {
-                    removeIndex = i;
-                    break;
-                }
-            }
-
-            if (removeIndex !== -1) {
-                // Remove from this index to the end
-                room.canvasState.splice(removeIndex);
-
-                // Update all clients
-                io.to(room.id).emit('clear');
-                io.to(room.id).emit('canvas_history', room.canvasState);
-            }
-        }
-    });
 
     socket.on('disconnect', () => {
         const room = getRoom(socket);
