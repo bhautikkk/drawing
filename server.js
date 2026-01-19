@@ -113,8 +113,9 @@ class GameRoom {
         this.drawingTime = drawingTime;
         this.isPublic = isPublic;
         this.hintsEnabled = hintsEnabled;
-        this.players = []; // Array of { id, name, score, avatar, guessed }
-        this.addPlayer(hostId, hostName);
+        this.hintsEnabled = hintsEnabled;
+        this.players = []; // Array of { id (socketId), userId, name, score, avatar, guessed, disconnected, disconnectTimer }
+        this.addPlayer(hostId, hostName, null); // userId will be set later or passed in
         this.usedWords = new Set(); // Track used words
         this.revealedIndices = new Set(); // Track revealed letters of current word
 
@@ -129,13 +130,29 @@ class GameRoom {
     }
 
 
-    addPlayer(id, name) {
-        this.players.push({
+    addPlayer(id, name, userId) {
+        // Check if player with userId already exists (rejoining)
+        const existingPlayer = this.players.find(p => p.userId && p.userId === userId);
+        if (existingPlayer) {
+            existingPlayer.id = id; // Update socket ID
+            existingPlayer.disconnected = false;
+            if (existingPlayer.disconnectTimer) {
+                clearTimeout(existingPlayer.disconnectTimer);
+                existingPlayer.disconnectTimer = null;
+            }
+            return existingPlayer;
+        }
+
+        const newPlayer = {
             id,
+            userId, // Persistent ID
             name,
             score: 0,
-            guessed: false
-        });
+            guessed: false,
+            disconnected: false
+        };
+        this.players.push(newPlayer);
+        return newPlayer;
     }
 
     removePlayer(id) {
@@ -439,6 +456,10 @@ io.on('connection', (socket) => {
                 isPublic,
                 hintsEnabled
             );
+
+            // Update host's userId
+            const host = room.players[0];
+            if (host) host.userId = socket.handshake.query.userId || arguments[0].userId;
             console.log('[DEBUG] Room object created');
 
             rooms[roomId] = room;
@@ -454,31 +475,31 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('quick_join', ({ username }) => {
+    socket.on('quick_join', ({ username, userId }) => {
         // Find public room with space
         const availableRoom = Object.values(rooms).find(r => r.isPublic && r.players.length < r.maxPlayers);
 
         if (availableRoom) {
-            joinRoomLogic(socket, availableRoom, username);
+            joinRoomLogic(socket, availableRoom, username, userId);
         } else {
             socket.emit('error', 'No public rooms available. Create one!');
         }
     });
 
-    socket.on('join_room', ({ code, username }) => {
+    socket.on('join_room', ({ code, username, userId }) => {
         const room = rooms[code];
         if (room) {
-            joinRoomLogic(socket, room, username);
+            joinRoomLogic(socket, room, username, userId);
         } else {
             socket.emit('error', 'Invalid Room Code');
         }
     });
 
-    function joinRoomLogic(socket, room, username) {
-        if (room.players.length < room.maxPlayers) {
+    function joinRoomLogic(socket, room, username, userId) {
+        if (room.players.length < room.maxPlayers || room.players.some(p => p.userId === userId)) {
             const isLateJoin = room.state !== 'LOBBY';
 
-            room.addPlayer(socket.id, username);
+            room.addPlayer(socket.id, username, userId);
             socket.join(room.id);
 
             socket.emit('joined_room', room.id);
@@ -593,30 +614,53 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         const room = getRoom(socket);
         if (room) {
-            const wasDrawer = (room.getDrawer() && room.getDrawer().id === socket.id);
-            // Must store state before removing, as removePlayer shifts drawerIndex logic
-            const stateBefore = room.state;
+            const player = room.players.find(p => p.id === socket.id);
+            if (!player) return;
 
-            const isEmpty = room.removePlayer(socket.id);
+            // Grace period logic
+            console.log(`[DEBUG] Player ${player.name} disconnected. Starting grace period (10s).`);
+            player.disconnected = true;
 
-            if (isEmpty) {
-                if (room.timer) clearInterval(room.timer);
-                delete rooms[room.id];
-            } else {
-                if (stateBefore !== 'LOBBY') {
-                    if (room.players.length < 2) {
-                        // Not enough players to continue
+            player.disconnectTimer = setTimeout(() => {
+                if (player.disconnected && rooms[room.id]) { // Check if room still exists
+                    console.log(`[DEBUG] Grace period over. Removing player ${player.name}.`);
+
+                    const wasDrawer = (room.getDrawer() && room.getDrawer().id === socket.id); // Old socket ID might serve as check, but better check player object equality if we tracked index
+                    // Actually, room.getDrawer() returns the player object. 
+                    // Since specific player object is same ref, we can check validity.
+
+                    const isEmpty = room.removePlayer(socket.id); // This searches by socket ID. 
+                    // Wait, if they reconnected, socketID changed. 
+                    // But if they reconnected, `disconnected` would be false and timer cleared.
+                    // So if we are here, they haven't reconnected. Socked ID in player obj matches the one that disconnected.
+
+                    if (isEmpty) {
                         if (room.timer) clearInterval(room.timer);
-                        room.state = 'LOBBY';
-                        room.broadcast("state_update", { state: 'LOBBY' });
-                    } else if (wasDrawer) {
-                        // Current drawer left - IMMEDIATELY end turn to skip to next
-                        if (room.timer) clearInterval(room.timer);
-                        room.endTurn();
+                        delete rooms[room.id];
+                    } else {
+                        // Handle game flow interruption
+                        const stateBefore = room.state;
+                        // Determine if they were the drawer using the index (since getDrawer relies on index)
+                        // This logic is tricky if removePlayer shifts index. removePlayer handles that.
+
+                        if (stateBefore !== 'LOBBY') {
+                            if (room.players.length < 2) {
+                                if (room.timer) clearInterval(room.timer);
+                                room.state = 'LOBBY';
+                                room.broadcast("state_update", { state: 'LOBBY' });
+                            } else if (wasDrawer) {
+                                // Logic reuse: The socket that disconnected was the drawer.
+                                // If they are gone now, we skip.
+                                if (room.timer) clearInterval(room.timer);
+                                room.endTurn();
+                            }
+                        }
+                        room.broadcastPlayerList();
                     }
                 }
-                room.broadcastPlayerList();
-            }
+            }, 10000); // 10 seconds grace period
+
+            // Optional: Broadcast "Player X disconnected, waiting..." so others know
         }
     });
 

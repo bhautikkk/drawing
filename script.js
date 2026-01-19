@@ -52,6 +52,11 @@ const ctx = ui.canvas.getContext('2d');
 
 // --- State ---
 let myId = null;
+let userId = sessionStorage.getItem('userId');
+if (!userId) {
+    userId = 'user_' + Math.random().toString(36).substr(2, 9);
+    sessionStorage.setItem('userId', userId);
+}
 let isDrawer = false;
 let isDrawing = false;
 let canDraw = false;
@@ -62,6 +67,9 @@ let currentSettings = {
     isEraser: false
 };
 let storedWord = ""; // Store secret word for drawer
+let disconnectTimer = null;
+// Overlay removed as per user request
+
 
 // --- Initialization ---
 function init() {
@@ -110,7 +118,8 @@ function init() {
             maxPlayers,
             drawTime,
             isPublic,
-            hintsEnabled
+            hintsEnabled,
+            userId // Send persistent ID
         });
 
         creationOverlay.classList.add('hidden');
@@ -144,7 +153,7 @@ function init() {
                 if (seconds <= 0) {
                     clearInterval(interval);
                     findingOverlay.classList.add('hidden');
-                    socket.emit('quick_join', { username });
+                    socket.emit('quick_join', { username, userId });
                 }
             }, 1000);
         });
@@ -154,7 +163,7 @@ function init() {
         const username = ui.menu.username.value.trim();
         const code = ui.menu.codeInput.value.trim();
         if (username && code) {
-            socket.emit('join_room', { code, username });
+            socket.emit('join_room', { code, username, userId });
         } else {
             showError("Enter name and room code!");
         }
@@ -291,7 +300,37 @@ function showScreen(screenName) {
 
 socket.on('connect', () => {
     myId = socket.id;
-    console.log("Connected", myId);
+    console.log("Connected", myId, "User ID:", userId);
+
+    // Clear disconnect timer if it helps
+    if (disconnectTimer) {
+        clearTimeout(disconnectTimer);
+        disconnectTimer = null;
+    }
+
+
+    // Try to rejoin if we have a room code and were disconnected
+    // Note: Since we don't persist room code in sessionStorage currently, 
+    // rejoining after full page reload isn't fully automatic unless we add that.
+    // However, this handles socket reconnects (brief internet loss) where page doesn't reload.
+    // Actually, for socket reconnects, the server might have kept us if within grace period,
+    // but the socket ID changed. We need to tell server "It's me, userId".
+
+    // If we are on a game screen or lobby, we should attempt to rejoin.
+    // But sending 'join_room' blindly might not be right if we don't have the code handy 
+    // (unless we store it in a variable).
+    // Let's rely on the fact that if we just reconnected, we might want to send a "re-identify" packet.
+    // Or simpler: The server sees a new connection. 
+    // If the user was in a room, they might need to send "I'm back".
+
+    // Strategy: If we have an active room code in UI, try rejoining with it.
+    const currentCode = ui.lobby.code.innerText;
+    const currentName = ui.menu.username.value || "Player"; // Might be lost on reload if not saved
+
+    if (currentCode && (screens.lobby.classList.contains('active') || screens.game.classList.contains('active'))) {
+        console.log("Attempting to rejoin room:", currentCode);
+        socket.emit('join_room', { code: currentCode, username: currentName, userId });
+    }
 });
 
 socket.on('room_created', (id) => {
@@ -468,8 +507,6 @@ socket.on('play_sound', (data) => {
         audio.play().catch(e => console.log("Audio play failed:", e));
     }
 });
-
-
 
 // --- Helpers ---
 

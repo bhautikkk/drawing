@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Open+Sans:wght@400;600&display=swap');
 
+
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -907,6 +909,7 @@ canvas {
 .leaderboard-item .score {
     font-weight: bold;
 }
+
 /* Overlay Screen (Full page overlay for menus) */
 .overlay-screen {
     position: fixed;
@@ -929,8 +932,13 @@ canvas {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* Spinner Loader */
@@ -944,5 +952,7 @@ canvas {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
