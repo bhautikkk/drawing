@@ -61,6 +61,7 @@ let currentSettings = {
     size: 5,
     isEraser: false
 };
+let storedWord = ""; // Store secret word for drawer
 
 // --- Initialization ---
 function init() {
@@ -68,43 +69,95 @@ function init() {
     window.addEventListener('resize', resizeCanvas);
 
     // Menu Events
-    // Menu Events
-    const createBtn = document.getElementById('create-room-btn');
-    if (createBtn) {
-        createBtn.addEventListener('click', () => {
-            const name = ui.menu.username.value.trim();
-            const rounds = document.getElementById('rounds-input').value;
-            const maxPlayers = document.getElementById('players-input').value;
-            const time = document.getElementById('time-input').value;
-            const type = document.getElementById('room-type').value;
+    // Creation Overlay Logic
+    const createRoomBtn = document.getElementById('create-room-btn');
+    const creationOverlay = document.getElementById('creation-overlay');
+    const cancelCreationBtn = document.getElementById('cancel-creation-btn');
+    const createPublicBtn = document.getElementById('create-public-btn');
+    const createPrivateBtn = document.getElementById('create-private-btn');
 
-            if (!name) return showError("Enter a name!");
-
-            socket.emit('create_room', {
-                players: Math.min(10, parseInt(maxPlayers) || 8),
-                username: name,
-                rounds: Math.min(10, parseInt(rounds) || 5),
-                drawingTime: parseInt(time) || 60,
-                isPublic: (type === 'public')
-            });
+    if (createRoomBtn) {
+        createRoomBtn.addEventListener('click', () => {
+            if (!ui.menu.username.value.trim()) {
+                showError("Please enter your name!");
+                return;
+            }
+            creationOverlay.classList.remove('hidden');
         });
     }
 
+    if (cancelCreationBtn) {
+        cancelCreationBtn.addEventListener('click', () => {
+            creationOverlay.classList.add('hidden');
+        });
+    }
+
+    function doCreateRoom(isPublic) {
+        const username = ui.menu.username.value.trim();
+        const rounds = parseInt(document.getElementById('rounds-input').value);
+        const maxPlayers = parseInt(document.getElementById('players-input').value);
+        const drawTime = parseInt(document.getElementById('time-input').value);
+        const hintsEnabled = document.getElementById('hint-toggle').value === 'true';
+
+        if (!username) {
+            showError("Please enter your name!");
+            return;
+        }
+
+        socket.emit('create_room', {
+            hostName: username,
+            rounds,
+            maxPlayers,
+            drawTime,
+            isPublic,
+            hintsEnabled
+        });
+
+        creationOverlay.classList.add('hidden');
+    }
+
+    if (createPublicBtn) createPublicBtn.addEventListener('click', () => doCreateRoom(true));
+    if (createPrivateBtn) createPrivateBtn.addEventListener('click', () => doCreateRoom(false));
+
+    // Quick Join Logic
     const quickJoinBtn = document.getElementById('quick-join-btn');
     if (quickJoinBtn) {
         quickJoinBtn.addEventListener('click', () => {
-            const name = ui.menu.username.value.trim();
-            if (!name) return showError("Enter a name!");
-            socket.emit('quick_join', { username: name });
+            const username = ui.menu.username.value.trim();
+            if (!username) {
+                showError("Please enter your name first!");
+                return;
+            }
+
+            // Show Finding Screen
+            const findingOverlay = document.getElementById('finding-room-overlay');
+            const statusText = document.getElementById('finding-status');
+            findingOverlay.classList.remove('hidden');
+
+            // Countdown
+            let seconds = 5;
+            statusText.textContent = `Please wait... ${seconds}`;
+
+            const interval = setInterval(() => {
+                seconds--;
+                statusText.textContent = `Please wait... ${seconds}`;
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    findingOverlay.classList.add('hidden');
+                    socket.emit('quick_join', { username });
+                }
+            }, 1000);
         });
     }
 
     ui.menu.joinBtn.addEventListener('click', () => {
-        const name = ui.menu.username.value.trim();
+        const username = ui.menu.username.value.trim();
         const code = ui.menu.codeInput.value.trim();
-        if (!name) return showError("Enter a name!");
-        if (!code) return showError("Enter a code!");
-        socket.emit('join_room', { code, username: name });
+        if (username && code) {
+            socket.emit('join_room', { code, username });
+        } else {
+            showError("Enter name and room code!");
+        }
     });
 
     ui.lobby.copy.addEventListener('click', () => {
@@ -278,11 +331,11 @@ function replayHistory() {
 }
 
 socket.on('canvas_history', (history) => {
-    console.log(`[DEBUG] Received history: ${history.length} items`); // DEBUG
+    // console.log(`[DEBUG] Received history: ${history.length} items`);
     receivedHistory = history;
+    // Fix for Undo Blink: Clear canvas locally before replaying the new history
+    ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
     replayHistory();
-    // Failsafe: Replay again after UI settles
-    setTimeout(replayHistory, 500);
 });
 
 socket.on('state_update', (data) => {
@@ -307,11 +360,15 @@ socket.on('state_update', (data) => {
         // Ensure overlay is gone (e.g. if auto-selected)
         ui.overlays.word.classList.add('hidden');
 
-        canDraw = (myId === data.drawerId); // Only drawer can draw
+        if (data.drawerId) {
+            canDraw = (myId === data.drawerId); // Only drawer can draw
+        }
         ui.tools.classList.toggle('disabled', !canDraw);
 
         if (canDraw) {
-            ui.word.textContent = `DRAW THIS: ${data.word || "???"}`; // Should be sent via 'your_word' usually
+            // Use stored word if data.word is missing (e.g. during hint updates)
+            if (data.word) storedWord = data.word; // Update if provided
+            ui.word.textContent = `DRAW THIS: ${storedWord || "???"}`;
         } else {
             ui.word.textContent = data.maskWords || data.maskedWord || "_ _ _";
         }
@@ -345,6 +402,7 @@ socket.on('choose_word', (words) => {
 });
 
 socket.on('your_word', (word) => {
+    storedWord = word;
     ui.word.textContent = `Word: ${word}`;
 });
 
@@ -394,6 +452,23 @@ socket.on('game_over', (players) => {
 
     document.getElementById('return-home-btn').onclick = () => location.reload();
 });
+
+socket.on('play_sound', (data) => {
+    if (data.sound === 'bell') {
+        const audio = new Audio('bell.mp3');
+        audio.play().catch(e => console.log("Audio play failed:", e));
+
+        // Stop after 3 seconds
+        setTimeout(() => {
+            audio.pause();
+            audio.currentTime = 0;
+        }, 3000);
+    } else if (data.sound === 'reveal') {
+        const audio = new Audio('reveal.mp3');
+        audio.play().catch(e => console.log("Audio play failed:", e));
+    }
+});
+
 
 
 // --- Helpers ---

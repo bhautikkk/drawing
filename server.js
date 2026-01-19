@@ -11,203 +11,75 @@ app.use(express.static(__dirname));
 
 // --- Game Constants & Data ---
 const WORDS = [
-    // --- ANIMALS ---
-    "Aardvark", "Albatross", "Alligator", "Alpaca", "Ant", "Anteater", "Antelope", "Ape", "Armadillo",
-    "Baboon", "Badger", "Eagle", "Bat", "Bear", "Beaver", "Bee", "Beetle", "Bird", "Bison",
-    "Boar", "Buffalo", "Butterfly", "Camel", "Capybara", "Cat", "Caterpillar", "Cheetah", "Chicken",
-    "Chimpanzee", "Chinchilla", "Chipmunk", "Cobra", "Cockroach", "Cod", "Cougar", "Cow", "Coyote",
-    "Crab", "Crane", "Cricket", "Crocodile", "Crow", "Deer", "Dinosaur", "Dog", "Dolphin", "Donkey",
-    "Dove", "Dragonfly", "Duck", "Eagle", "Eel", "Elephant", "Elk", "Emu", "Falcon", "Ferret",
-    "Finch", "Fish", "Flamingo", "Flea", "Fly", "Fox", "Frog", "Gazelle", "Gecko", "Gerbil",
-    "Giraffe", "Gnat", "Goat", "Goldfish", "Goose", "Gorilla", "Grasshopper", "Guinea Pig", "Hamster",
-    "Hare", "Hawk", "Hedgehog", "Heron", "Hippo", "Hornet", "Horse", "Hummingbird", "Hyena", "Iguana",
-    "Impala", "Insect", "Jackal", "Jaguar", "Jellyfish", "Kangaroo", "Koala", "Koi", "Komodo Dragon",
-    "Ladybug", "Lamb", "Lemur", "Leopard", "Lion", "Lizard", "Llama", "Lobster", "Locust", "Lynx",
-    "Macaw", "Magpie", "Mallard", "Mammoth", "Manatee", "Mantis", "Meerkat", "Mink", "Mole",
-    "Mongoose", "Monkey", "Moose", "Mosquito", "Moth", "Mouse", "Mule", "Narwhal", "Newt",
-    "Nightingale", "Octopus", "Okapi", "Opossum", "Oryx", "Ostrich", "Otter", "Owl", "Ox",
-    "Oyster", "Panther", "Parrot", "Partridge", "Peacock", "Pelican", "Penguin", "Pheasant", "Pig",
-    "Pigeon", "Piranha", "Platypus", "Polar Bear", "Porcupine", "Porpoise", "Possum", "Prawn", "Pug",
-    "Puma", "Quail", "Rabbit", "Raccoon", "Ram", "Rat", "Rattlesnake", "Raven", "Reindeer", "Rhino",
-    "Rooster", "Salamander", "Salmon", "Sand Dollar", "Sardine", "Scorpion", "Seahorse", "Seal",
-    "Shark", "Sheep", "Shrew", "Shrimp", "Skunk", "Sloth", "Slug", "Snail", "Snake", "Spider",
-    "Squid", "Squirrel", "Starfish", "Stingray", "Stork", "Swan", "Tapir", "Termite", "Tiger",
-    "Toad", "Tortoise", "Toucan", "Trout", "Turkey", "Turtle", "Viper", "Vulture", "Wallaby",
-    "Walrus", "Wasp", "Weasel", "Whale", "Wolf", "Wolverine", "Wombat", "Woodpecker", "Worm",
-    "Yak", "Zebra",
+    // --- ANIMALS (Common & Easy) ---
+    "Ant", "Bat", "Bear", "Bee", "Bird", "Bunny", "Camel", "Cat", "Cow", "Crab", "Deer", "Dog",
+    "Duck", "Eagle", "Fish", "Fly", "Fox", "Frog", "Goat", "Goose", "Horse", "Lion", "Llama",
+    "Mouse", "Owl", "Pig", "Pug", "Rat", "Seal", "Shark", "Sheep", "Snail", "Snake", "Spider",
+    "Swan", "Tiger", "Toad", "Turtle", "Wasp", "Whale", "Wolf", "Worm", "Zebra",
 
-    // --- FOOD & DRINK ---
-    "Acorn", "Almond", "Apple", "Apricot", "Asparagus", "Avocado", "Bacon", "Bagel", "Banana",
-    "Barbecue", "Basil", "Bean", "Beef", "Beer", "Beet", "Berry", "Biscuit", "Blackberry",
-    "Blueberry", "Bread", "Broccoli", "Brownie", "Burrito", "Butter", "Cabbage", "Cake", "Candy",
-    "Cantaloupe", "Caramel", "Carrot", "Cashew", "Cauliflower", "Celery", "Cereal", "Cheese",
-    "Cheeseburger", "Cherry", "Chestnut", "Chili", "Chips", "Chocolate", "Cinnamon", "Clam",
-    "Coconut", "Coffee", "Cola", "Cookie", "Corn", "Cotton Candy", "Crab", "Cracker", "Cranberry",
-    "Croissant", "Cucumber", "Cupcake", "Curry", "Date", "Dessert", "Dinner", "Donut", "Dragonfruit",
-    "Drink", "Dumpling", "Egg", "Eggplant", "Fig", "Fish", "Flour", "Food", "Fork", "Fries",
-    "Fruit", "Garlic", "Ginger", "Grape", "Grapefruit", "Gravy", "Guacamole", "Guava", "Ham",
-    "Hamburger", "Hazelnut", "Honey", "Hot Dog", "Hummus", "Ice Cream", "Icing", "Jalapeno", "Jam",
-    "Jelly", "Juice", "Kale", "Ketchup", "Kiwi", "Lasagna", "Lemon", "Lemonade", "Lettuce",
-    "Lime", "Lobster", "Lolipop", "Lunch", "Macaroni", "Mango", "Marshmallow", "Mayonnaise",
-    "Meat", "Meatball", "Melon", "Milk", "Milkshake", "Mint", "Muffin", "Mushroom", "Mustard",
-    "Nachos", "Noodle", "Nut", "Oatmeal", "Olive", "Omelet", "Onion", "Orange", "Oreo",
-    "Pancake", "Papaya", "Pasta", "Pastry", "Peach", "Peanut", "Pear", "Peas", "Pecan",
-    "Pepper", "Pepperoni", "Pickle", "Pie", "Pineapple", "Pistachio", "Pizza", "Plum", "Popcorn",
-    "Popsicle", "Pork", "Potato", "Pretzel", "Pudding", "Pumpkin", "Radish", "Raisin", "Raspberry",
-    "Ravioli", "Rice", "Roll", "Salad", "Salami", "Salmon", "Salt", "Sandwich", "Sausage",
-    "Seafood", "Sesame", "Shake", "Shrimp", "Soda", "Soup", "Soy", "Spaghetti", "Spice",
-    "Spinach", "Spoon", "Squash", "Steak", "Stew", "Strawberry", "Sugar", "Sushi", "Syrup",
-    "Taco", "Tangerine", "Tea", "Toast", "Tofu", "Tomato", "Tortilla", "Tuna", "Turkey",
-    "Turnip", "Vanilla", "Vegetable", "Vinegar", "Waffle", "Walnut", "Water", "Watermelon", "Wheat",
-    "Yam", "Yogurt", "Zucchini",
+    // --- FOOD (Tasty & Simple) ---
+    "Apple", "Bagel", "Banana", "Bread", "Burger", "Cake", "Candy", "Cheese", "Cherry",
+    "Chips", "Cookie", "Corn", "Donut", "Egg", "Fries", "Grape", "Honey", "Ice Cream",
+    "Lemon", "Lime", "Mango", "Meat", "Melon", "Milk", "Nut", "Onion", "Orange", "Peach",
+    "Pear", "Pie", "Pizza", "Potato", "Rice", "Salad", "Salt", "Soup", "Steak", "Sushi",
+    "Taco", "Toast", "Water",
 
-    // --- OBJECTS & HOUSEHOLD ---
-    "Alarm", "Anchor", "Anvil", "Axe", "Backpack", "Bag", "Ball", "Balloon", "Bandage",
-    "Banner", "Basket", "Bathtub", "Battery", "Bed", "Bell", "Belt", "Bench", "Bib",
-    "Binoculars", "Birdcage", "Blanket", "Blender", "Board", "Boat", "Bomb", "Book", "Bookmark",
-    "Boombox", "Bottle", "Bowl", "Box", "Bracelet", "Brick", "Bridge", "Broom", "Brush",
-    "Bucket", "Bulb", "Button", "Cabinet", "Calculator", "Calendar", "Camera", "Candle", "Canoe",
-    "Canvas", "Cap", "Card", "Carpet", "Cart", "Castle", "Catapult", "Chair", "Chalk",
-    "Chandelier", "Charger", "Chest", "Chimney", "Clock", "Cloth", "Coat", "Coffin", "Coin",
-    "Comb", "Compass", "Computer", "Controller", "Cooler", "Cork", "Couch", "Crayon", "Cream",
-    "Credit Card", "Crib", "Crown", "Crystal", "Cup", "Curtain", "Cushion", "Desk", "Diamond",
-    "Dice", "Dictionary", "Dish", "Doll", "Door", "Doormat", "Drill", "Drum", "Duck",
-    "Dustpan", "Duvet", "Dynamite", "Earrings", "Easel", "Engine", "Envelope", "Eraser", "Fan",
-    "Faucet", "Feather", "Fence", "File", "Fire", "Fireplace", "Flag", "Flashlight", "Flask",
-    "Flowerpot", "Flute", "Fork", "Fridge", "Furnace", "Furniture", "Fuse", "Garbage", "Garden",
-    "Gate", "Gear", "Gem", "Gift", "Glass", "Glasses", "Glove", "Glue", "Goggle",
-    "Gold", "Gong", "Guitar", "Gun", "Hammer", "Hammock", "Handcuffs", "Hanger", "Harp",
-    "Hat", "Headphones", "Heater", "Helmet", "Hose", "Hourglass", "House", "Hut", "Igloo",
-    "Ink", "iPad", "iPhone", "iPod", "Iron", "Ivory", "Jacket", "Jar", "Jeans",
-    "Jewel", "Jigsaw", "Journal", "Jug", "Juice", "Key", "Keyboard", "Kite", "Knife",
-    "Knot", "Ladder", "Lamp", "Lantern", "Laptop", "Lasso", "Laundry", "Lawnmower", "Leaf",
-    "Leather", "Lens", "Letter", "Light", "Lighter", "Lighthouse", "Lipstick", "Lock", "Locker",
-    "Log", "Lotion", "Luggage", "Machine", "Magazine", "Magnet", "Mailbox", "Map", "Marble",
-    "Mask", "Match", "Mattress", "Medal", "Medicine", "Microwave", "Mirror", "Missile", "Mixer",
-    "Money", "Monitor", "Mop", "Motor", "Mousepad", "Mug", "Nail", "Napkin", "Necklace",
-    "Needle", "Net", "Newspaper", "Notebook", "Nozzle", "Nutcracker", "Oar", "Oven", "Package",
-    "Paddle", "Paint", "Painting", "Pan", "Pants", "Paper", "Paperclip", "Parachute", "Parcel",
-    "Passport", "Pebble", "Pen", "Pencil", "Pendulum", "Perfume", "Phone", "Photo", "Piano",
-    "Pillow", "Pipe", "Pistol", "Pitchfork", "Plane", "Plate", "Pliers", "Plug", "Pocket",
-    "Podium", "Pole", "Postcard", "Poster", "Pot", "Potion", "Powder", "Present", "Printer",
-    "Prism", "Projector", "Propeller", "Pump", "Puppet", "Purse", "Puzzle", "Pyramid", "Quilt",
-    "Radar", "Radio", "Raft", "Rail", "Rake", "Ramp", "Razor", "Receipt", "Record",
-    "Refrigerator", "Remote", "Ring", "Robot", "Rocket", "Rocking Chair", "Roller", "Roof", "Rope",
-    "Rug", "Ruler", "Sack", "Saddle", "Safe", "Sail", "Sandals", "Sandpaper", "Satellite",
-    "Saucer", "Saw", "Saxophone", "Scale", "Scarf", "Scissors", "Scooter", "Screen", "Screw",
-    "Screwdriver", "Sculpture", "Seat", "Shampoo", "Sheet", "Shelf", "Shell", "Shield", "Ship",
-    "Shirt", "Shoe", "Shovel", "Shower", "Shutter", "Sieve", "Sign", "Silk", "Sink",
-    "Skate", "Skateboard", "Ski", "Skirt", "Sled", "Slippers", "Soap", "Sock", "Sofa",
-    "Solar Panel", "Spade", "Speaker", "Spectacles", "Sponge", "Spool", "Spoon", "Spray", "Spring",
-    "Stamp", "Stapler", "Statue", "Stereo", "Stick", "Sticker", "Stocking", "Stool", "Stopwatch",
-    "Stove", "Straw", "Streetlight", "String", "Suitcase", "Sun", "Sunglasses", "Sword", "Syringe",
-    "Table", "Tablecloth", "Tablet", "Tag", "Tank", "Tape", "Target", "Taxi", "Teapot",
-    "Telescope", "Television", "Tent", "Thermometer", "Thimble", "Thread", "Throne", "Ticket", "Tie",
-    "Tile", "Timer", "Tissue", "Toaster", "Toilet", "Tool", "Toothbrush", "Toothpaste", "Torch",
-    "Towel", "Toy", "Tractor", "Train", "Trampoline", "Trap", "Trash", "Tray", "Treasure",
-    "Tree", "Triangle", "Tricycle", "Tripod", "Trophy", "Truck", "Trumpet", "Trunk", "Tub",
-    "Tube", "Tunnel", "Tweezers", "Typewriter", "Tire", "Umbrella", "Uniform", "Urn", "Vacuum",
-    "Valise", "Van", "Vase", "Vault", "Vegetable", "Vehicle", "Veil", "Vent", "Vessel",
-    "Vest", "Video", "Violin", "Visor", "Wagon", "Wall", "Wallet", "Wand", "Wardrobe",
-    "Washer", "Watch", "Water", "Wax", "Weapon", "Web", "Wedge", "Weight", "Well",
-    "Wheel", "Wheelchair", "Whip", "Whistle", "Wig", "Windmill", "Window", "Wine", "Wire",
-    "Wood", "Wool", "Wrench", "Xylophone", "Yacht", "Yardstick", "Yarn", "Yo-yo", "Zipper",
+    // --- OBJECTS (Drawable & Everyday) ---
+    "Alarm", "Anchor", "Arrow", "Axe", "Ball", "Balloon", "Basket", "Bed", "Bell", "Belt",
+    "Bench", "Bike", "Boat", "Bomb", "Book", "Bowl", "Box", "Brick", "Broom", "Brush",
+    "Bulb", "Bus", "Cage", "Camera", "Candle", "Car", "Card", "Chair", "Clock", "Cloud",
+    "Comb", "Cone", "Cup", "Desk", "Dice", "Door", "Dress", "Drum", "Fan", "Fence",
+    "Flag", "Flower", "Fork", "Fridge", "Gate", "Gear", "Ghost", "Gift", "Glass",
+    "Glove", "Glue", "Gold", "Grass", "Guitar", "Gun", "Hammer", "Hat", "Heart",
+    "Home", "Hook", "House", "Jar", "Jewel", "Key", "Kite", "Knife", "Lamp", "Leaf",
+    "Light", "Lock", "Log", "Map", "Mask", "Moon", "Mop", "Mug", "Nail", "Net",
+    "Note", "Oven", "Pan", "Paper", "Pen", "Phone", "Piano", "Pipe", "Plane", "Plate",
+    "Plug", "Pool", "Pot", "Purse", "Radio", "Rain", "Ring", "Robot", "Rock", "Rocket",
+    "Roof", "Rope", "Rug", "Ruler", "Safe", "Saw", "Scale", "Screw", "Seat", "Shell",
+    "Ship", "Shirt", "Shoe", "Shop", "Sign", "Sink", "Skull", "Slide", "Smoke", "Soap",
+    "Sock", "Sofa", "Spoon", "Star", "Step", "Stick", "Stone", "Stool", "Sun", "Sword",
+    "Table", "Tank", "Tape", "Tent", "Tie", "Tire", "Toast", "Tool", "Tooth", "Torch",
+    "Toy", "Train", "Trash", "Tree", "Truck", "Tube", "Van", "Vase", "Wall", "Wand",
+    "Watch", "Water", "Web", "Well", "Wheel", "Whip", "Window", "Wing", "Wire", "Wood",
+    "Wool", "Yo-yo",
 
-    // --- NATURE & PLACES ---
-    "Airport", "Alley", "Arch", "Arena", "Asteroid", "Atmosphere", "Attic", "Aurora", "Autumn",
-    "Avenue", "Backyard", "Bank", "Barn", "Base", "Basement", "Bay", "Beach", "Bedroom",
-    "Black Hole", "Blizzard", "Bog", "Boulevard", "Brook", "Building", "Bunker", "Bush", "Cabin",
-    "Cafe", "Camp", "Campsite", "Canal", "Canyon", "Capital", "Cave", "Ceiling", "Cellar",
-    "Cemetery", "Chapel", "Church", "Cinema", "City", "Cliff", "Climate", "Cloud", "Coast",
-    "College", "Comet", "Constellation", "Continent", "Coral", "Corner", "Country", "County", "Court",
-    "Crater", "Creek", "Dam", "Dawn", "Day", "Deck", "Dell", "Delta", "Desert",
-    "Dirt", "Ditch", "Dock", "Dorm", "Driveway", "Dune", "Dusk", "Dust", "Earth",
-    "East", "Eclipse", "Edge", "Estate", "Evening", "Everglades", "Factory", "Fair", "Fall",
-    "Farm", "Field", "Fire station", "Floor", "Fog", "Forest", "Fort", "Fountain", "Galaxy",
-    "Garage", "Garden", "Gate", "Geyser", "Glacier", "Grass", "Graveyard", "Ground", "Grove",
-    "Gym", "Hail", "Hall", "Harbor", "Heaven", "Hedge", "Hell", "Hill", "Horizon",
-    "Hospital", "Hotel", "House", "Hurricane", "Ice", "Iceberg", "Igloo", "Inlet", "Inn",
-    "Island", "Isle", "Jail", "Jungle", "Jupiter", "Kitchen", "Lab", "Lagoon", "Lake",
-    "Land", "Lane", "Lava", "Leaf", "Library", "Light", "Lightning", "Lobby", "Lodge",
-    "Loop", "Mall", "Manor", "Mansions", "Map", "Market", "Mars", "Marsh", "Maze",
-    "Meadow", "Mercury", "Mesa", "Meteor", "Midnight", "Mine", "Mist", "Moon", "Morning",
-    "Moss", "Motel", "Mountain", "Museum", "Nature", "Nebula", "Neptune", "Night", "North",
-    "Oasis", "Observatory", "Ocean", "Office", "Orbit", "Orchard", "Palace", "Park", "Path",
-    "Peak", "Peninsula", "Petal", "Pier", "Plain", "Planet", "Plant", "Plateau", "Playground",
-    "Plaza", "Pond", "Pool", "Port", "Prairie", "Prison", "Pub", "Puddle", "Pyramid",
-    "Quarry", "Quarter", "Quay", "Radar", "Rain", "Rainbow", "Rainforest", "Ranch", "Rapids",
-    "Reef", "Reservoir", "Resort", "Restaurant", "Ridge", "River", "Road", "Rock", "Roof",
-    "Room", "Root", "Rose", "Route", "Ruins", "Sand", "Sandstorm", "Saturn", "Savanna",
-    "School", "Sea", "Season", "Seed", "Sewer", "Shack", "Shadow", "Shed", "Shore",
-    "Shop", "Shower", "Sidewalk", "Sky", "Skyscraper", "Slope", "Smog", "Smoke", "Snow",
-    "Soil", "Solar System", "South", "Space", "Space Station", "Spring", "Square", "Stable", "Stadium",
-    "Stage", "Star", "Station", "Steam", "Stone", "Storm", "Street", "Studio", "Subway",
-    "Summer", "Sun", "Sunset", "Sunshine", "Supermarket", "Swamp", "Taxi", "Temple", "Tent",
-    "Terrain", "Territory", "Theater", "Thunder", "Tide", "Timber", "Toilet", "Tomb", "Tornado",
-    "Tower", "Town", "Track", "Trail", "Tree", "Trench", "Tropical", "Tunnel", "Twilight",
-    "Typhoon", "Universe", "Uranus", "Valley", "Vegetation", "Venus", "View", "Village", "Vine",
-    "Volcano", "Wall", "Warehouse", "Waterfall", "Wave", "Way", "Weather", "Web", "West",
-    "Wetland", "Wharf", "Whirlpool", "Wilderness", "Wind", "Winter", "Wood", "Woods", "World",
-    "Yard", "Zoo",
+    // --- BODY PARTS ---
+    "Arm", "Back", "Beard", "Brain", "Chin", "Ear", "Eye", "Face", "Foot", "Hair",
+    "Hand", "Head", "Knee", "Leg", "Lip", "Mouth", "Neck", "Nose", "Palm", "Skin",
+    "Skull", "Teeth", "Thumb", "Toe", "Tongue",
+
+    // --- CLOTHES ---
+    "Belt", "Boot", "Cap", "Coat", "Dress", "Glove", "Hat", "Hood", "Mask", "Pants",
+    "Ring", "Scarf", "Shirt", "Shoe", "Skirt", "Sock", "Suit", "Tie", "Vest",
+
+    // --- NATURE & WEATHER ---
+    "Ash", "Beach", "Bush", "Cave", "City", "Cliff", "Cloud", "Cold", "Day", "Dirt",
+    "Dust", "Earth", "Fire", "Fog", "Hail", "Heat", "Hill", "Hot", "Ice", "Lake",
+    "Lava", "Leaf", "Light", "Mars", "Moon", "Mud", "Night", "Park", "Path", "Peak",
+    "Pond", "Rain", "River", "Road", "Rock", "Root", "Rose", "Sand", "Sea", "Seed",
+    "Sky", "Snow", "Soil", "Star", "Storm", "Sun", "Tree", "Wave", "Wind", "Wood",
 
     // --- PEOPLE & ROLES ---
-    "Actor", "Actress", "Adult", "Agent", "Alien", "Angel", "Archer", "Artist", "Assassin",
-    "Astronaut", "Athlete", "Author", "Baby", "Baker", "Bandit", "Banker", "Barber", "Bard",
-    "Barman", "Baron", "Beggar", "Bishop", "Blacksmith", "Bodyguard", "Boss", "Boy", "Boxer",
-    "Bride", "Brother", "Builder", "Burglar", "Butcher", "Butler", "Captain", "Carpenter", "Cashier",
-    "Chef", "Chief", "Child", "Chimney Sweeper", "Clerk", "Client", "Clown", "Coach", "Commander",
-    "Composer", "Conductor", "Cook", "Cop", "Cowboy", "Crew", "Criminal", "Cyclist", "Dad",
-    "Dancer", "Dealer", "Dentist", "Designer", "Detective", "Devil", "Director", "Diver", "Doctor",
-    "Driver", "Duke", "Dwarf", "Editor", "Elf", "Emperor", "Enemy", "Engineer", "Farmer",
-    "Father", "Fireman", "Fisherman", "Gangster", "Gardener", "Genie", "Ghost", "Giant", "Girl",
-    "Gnome", "Goblin", "God", "Goddess", "Golfer", "Governor", "Grandma", "Grandpa", "Guard",
-    "Guest", "Guide", "Gymnast", "Hacker", "Hero", "Hippie", "Hobbit", "Host", "Hunter",
-    "Husband", "Idol", "Imp", "Infant", "Inspector", "Instructor", "Intern", "Inventor", "Jailer",
-    "Janitor", "Jester", "Jockey", "Judge", "Juggler", "Kid", "King", "Knight", "Lady",
-    "Lawyer", "Leader", "Librarian", "Lifeguard", "Lord", "Maid", "Mailman", "Manager", "Man",
-    "Mayor", "Mechanic", "Medic", "Merchant", "Mermaid", "Messiah", "Miner", "Minister", "Minotaur",
-    "Model", "Mom", "Monk", "Monster", "Mother", "Mummy", "Musician", "Nanny", "Neighbor",
-    "Ninja", "Nurse", "Officer", "Ogre", "Operator", "Orc", "Orphan", "Owner", "Painter",
-    "Parent", "Passenger", "Peasant", "Pedestrian", "Person", "Phantom", "Photographer", "Pilot", "Pirate",
-    "Plumber", "Poet", "Police", "Politician", "Pope", "Porter", "Postman", "President", "Priest",
-    "Prince", "Princess", "Principal", "Prisoner", "Professor", "Programmer", "Psychic", "Puppeteer", "Queen",
-    "Ranger", "Referee", "Reporter", "Representative", "Researcher", "Robber", "Robot", "Rogue", "Sailor",
-    "Saint", "Samurai", "Santa", "Scientist", "Scout", "Secretary", "Security", "Servant", "Shaman",
-    "Sheriff", "Singer", "Sister", "Skeleton", "Slave", "Sniper", "Soldier", "Son", "Sorcerer",
-    "Spy", "Staff", "Student", "Surfer", "Surgeon", "Swimmer", "Tailor", "Teacher", "Teenager",
-    "Thief", "Titan", "Toddler", "Tourist", "Trader", "Trainer", "Troll", "Trucker", "Tutor",
-    "Twin", "Uncle", "Umpire", "Undertaker", "User", "Vampire", "Viking", "Villain", "Waiter",
-    "Waitress", "Warden", "Warrior", "Watchman", "Werewolf", "Wife", "Witch", "Wizard", "Woman",
-    "Worker", "Wraith", "Writer", "Zombie",
+    "Actor", "Angel", "Artist", "Baby", "Baker", "Boss", "Boy", "Chef", "Child",
+    "Clown", "Cook", "Cop", "Dad", "Devil", "Doctor", "Driver", "Elf", "Girl",
+    "Ghost", "Guard", "Hero", "Judge", "King", "Maid", "Man", "Mom", "Monk",
+    "Ninja", "Nurse", "Pilot", "Poet", "Pope", "Priest", "Queen", "Robot",
+    "Santa", "Scout", "Spy", "Thief", "Twin", "Witch", "Woman",
 
-    // --- ACTIONS & VERBS ---
-    "Acting", "Adding", "Aiming", "Alert", "Arguing", "Asking", "Awake", "Baking", "Balance",
-    "Bark", "Bathing", "Begging", "Biting", "Bleeding", "Blind", "Blush", "Boil", "Boxing",
-    "Break", "Breath", "Brush", "Build", "Burn", "Buy", "Call", "Camping", "Carry",
-    "Catch", "Celebrate", "Chase", "Cheat", "Cheer", "Chew", "Choke", "Chop", "Clap",
-    "Clean", "Climb", "Close", "Comb", "Cook", "Cough", "Count", "Crack", "Crash",
-    "Crawl", "Cry", "Cut", "Dance", "Dig", "Dive", "Draw", "Dream", "Drink",
-    "Drive", "Drop", "Drum", "Eat", "Enter", "Escape", "Exercise", "Exit", "Explode",
-    "Fall", "Feed", "Fight", "Fish", "Fix", "Float", "Fly", "Fold", "Follow",
-    "Freeze", "Frown", "Gamble", "Give", "Glue", "Grab", "Grow", "Hang", "Hatch",
-    "Hear", "Hide", "Hit", "Hold", "Hop", "Hug", "Hunt", "Hurt", "Iron",
-    "Itch", "Jog", "Juggle", "Jump", "Kick", "Kiss", "Kneel", "Knock", "Laugh",
-    "Launch", "Lead", "Lean", "Leave", "Lick", "Lift", "Listen", "Look", "Lose",
-    "Love", "Make", "Marry", "March", "Melt", "Mix", "Mow", "Nod", "Open",
-    "Paint", "Panic", "Pass", "Pay", "Peel", "Pet", "Pick", "Plant", "Play",
-    "Point", "Poke", "Pour", "Pray", "Pull", "Punch", "Push", "Race", "Rake",
-    "Read", "Recycle", "Relax", "Repair", "Rest", "Ride", "Rip", "Roll", "Row",
-    "Run", "Sail", "Salute", "Save", "Saw", "Scream", "Scrub", "Search", "See",
-    "Sell", "Serve", "Sew", "Shake", "Shave", "Shop", "Shout", "Show", "Sing",
-    "Sit", "Skate", "Ski", "Skip", "Slap", "Sleep", "Slide", "Slip", "Smell",
-    "Smile", "Smoke", "Sneeze", "Sniff", "Snore", "Snow", "Sob", "Speak", "Spell",
-    "Spill", "Spin", "Spit", "Split", "Spray", "Squat", "Squeeze", "Stab", "Stand",
-    "Stare", "Steal", "Step", "Stir", "Stop", "Stretch", "Study", "Surfing", "Sweat",
-    "Sweep", "Swim", "Swing", "Talk", "Taste", "Teach", "Tear", "Tease", "Text",
-    "Think", "Throw", "Tickle", "Tie", "Toast", "Touch", "Tow", "Trace", "Trap",
-    "Travel", "Trip", "Juggle", "Type", "Vacuum", "Vote", "Wait", "Wake", "Walk",
-    "Wash", "Watch", "Wave", "Wear", "Weep", "Weigh", "Whisper", "Whistle", "Win",
-    "Wink", "Wipe", "Wish", "Work", "Wrap", "Write", "Yawn", "Yell", "Yoga"
+    // --- VERBS / ACTIONS ---
+    "Bark", "Bend", "Bite", "Blow", "Boil", "Burn", "Buy", "Call", "Chew",
+    "Chop", "Clap", "Cook", "Cry", "Cut", "Dance", "Dig", "Dive", "Draw",
+    "Drink", "Drive", "Drop", "Eat", "Fall", "Feed", "Fight", "Fly", "Give",
+    "Glue", "Grow", "Hang", "Hear", "Hide", "Hit", "Hop", "Hug", "Hunt",
+    "Jump", "Kick", "Kiss", "Laugh", "Lick", "Lift", "Listen", "Look", "Love",
+    "Melt", "Mix", "Open", "Paint", "Pay", "Pet", "Pick", "Play", "Pray",
+    "Pull", "Push", "Race", "Read", "Ride", "Ring", "Roll", "Row", "Run",
+    "Sail", "Saw", "See", "Sew", "Shake", "Shop", "Show", "Sing", "Sit",
+    "Ski", "Sleep", "Slide", "Smell", "Smile", "Smoke", "Speak", "Spell",
+    "Spit", "Stand", "Stop", "Swim", "Talk", "Taste", "Teach", "Tear",
+    "Text", "Think", "Throw", "Tie", "Touch", "Type", "Wait", "Walk",
+    "Wash", "Watch", "Wave", "Weep", "Win", "Wink", "Wipe", "Work", "Write",
+    "Yawn", "Yell"
 ];
 
 const GAME_SETTINGS = {
@@ -234,14 +106,17 @@ function getRandomWords(count = 3) {
 // --- Game Logic Classes ---
 
 class GameRoom {
-    constructor(id, maxPlayers, hostName, hostId, maxRounds = 5, drawingTime = 60, isPublic = false) {
+    constructor(id, maxPlayers, hostName, hostId, maxRounds = 5, drawingTime = 60, isPublic = false, hintsEnabled = true) {
         this.id = id;
         this.maxPlayers = maxPlayers;
         this.maxRounds = maxRounds;
         this.drawingTime = drawingTime;
         this.isPublic = isPublic;
+        this.hintsEnabled = hintsEnabled;
         this.players = []; // Array of { id, name, score, avatar, guessed }
         this.addPlayer(hostId, hostName);
+        this.usedWords = new Set(); // Track used words
+        this.revealedIndices = new Set(); // Track revealed letters of current word
 
         // Game State
         this.state = 'LOBBY';
@@ -303,6 +178,7 @@ class GameRoom {
         this.round = 1;
         this.drawerIndex = 0;
         this.canvasState = [];
+        this.usedWords.clear(); // Clear used words on new game
         this.startChoosingPhase();
     }
 
@@ -319,7 +195,20 @@ class GameRoom {
         this.broadcast("clear");
 
         const drawer = this.getDrawer();
-        const words = getRandomWords(3);
+
+        // Select unique words
+        let availableWords = WORDS.filter(w => !this.usedWords.has(w));
+        if (availableWords.length < 3) {
+            this.usedWords.clear(); // Reset if we run out
+            availableWords = [...WORDS];
+        }
+
+        // Shuffle and pick 3
+        const words = availableWords.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+        // Mark as used so they don't appear again immediately (or just the chosen one? 
+        // For now, let's mark all offered to ensure high variety)
+        words.forEach(w => this.usedWords.add(w));
 
         this.broadcast("state_update", {
             state: 'CHOOSING',
@@ -345,8 +234,9 @@ class GameRoom {
         this.state = 'DRAWING';
         this.currentWord = word;
         this.timeLeft = this.drawingTime;
+        this.revealedIndices.clear(); // Reset hints
 
-        const masked = word.split('').map(c => c === ' ' ? ' ' : '_').join('');
+        const masked = this.getMaskedWord();
 
         this.broadcast("state_update", {
             state: 'DRAWING',
@@ -356,6 +246,9 @@ class GameRoom {
             drawerId: this.getDrawer().id,
             drawerName: this.getDrawer().name
         });
+
+        // Play bell sound for everyone
+        this.broadcast("play_sound", { sound: "bell" });
 
         const drawer = this.getDrawer();
         io.to(drawer.id).emit("your_word", word);
@@ -373,6 +266,9 @@ class GameRoom {
             drawerName: this.getDrawer()?.name || "Unknown",
             timeLeft: GAME_SETTINGS.TIME_INTERMISSION
         });
+
+        // Play reveal sound
+        this.broadcast("play_sound", { sound: "reveal" });
 
         this.startTimer(GAME_SETTINGS.TIME_INTERMISSION, () => {
             if (this.players.length < 2) {
@@ -400,6 +296,44 @@ class GameRoom {
         }, 10000);
     }
 
+    getMaskedWord() {
+        return this.currentWord.split('').map((char, index) => {
+            if (char === ' ') return ' ';
+            if (this.revealedIndices.has(index)) return char;
+            return '_';
+        }).join('');
+    }
+
+    handleTick() {
+        if (this.state === 'DRAWING' && this.currentWord.length > 3 && this.hintsEnabled) {
+            if (this.timeLeft === 25 || this.timeLeft === 10) {
+                this.revealLetter();
+            }
+        }
+    }
+
+    revealLetter() {
+        const unrevealed = [];
+        for (let i = 0; i < this.currentWord.length; i++) {
+            if (this.currentWord[i] !== ' ' && !this.revealedIndices.has(i)) {
+                unrevealed.push(i);
+            }
+        }
+
+        if (unrevealed.length > 0) {
+            // Pick random
+            const idx = unrevealed[Math.floor(Math.random() * unrevealed.length)];
+            this.revealedIndices.add(idx);
+
+            this.broadcast("state_update", {
+                state: 'DRAWING',
+                maskedWord: this.getMaskedWord(),
+                drawerId: this.getDrawer().id,
+                drawerName: this.getDrawer().name
+            });
+        }
+    }
+
     resetGuesses() {
         this.players.forEach(p => p.guessed = false);
     }
@@ -410,6 +344,9 @@ class GameRoom {
 
         this.timer = setInterval(() => {
             this.timeLeft--;
+
+            this.handleTick(); // Check for hints
+
             io.to(this.id).emit("timer_update", this.timeLeft);
 
             if (this.timeLeft <= 0) {
@@ -482,18 +419,39 @@ class GameRoom {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    socket.on('create_room', ({ players, username, rounds, drawingTime, isPublic }) => {
-        const roomId = generateRoomId();
-        // Strict server-side clamping: Max 10 players, Max 10 rounds
-        const safePlayers = Math.min(10, Math.max(2, parseInt(players) || 8));
-        const safeRounds = Math.min(10, Math.max(1, parseInt(rounds) || 5));
+    socket.on('create_room', ({ hostName, maxPlayers, rounds, drawTime, isPublic, hintsEnabled }) => {
+        try {
+            console.log('[DEBUG] create_room request:', { hostName, maxPlayers, rounds, drawTime, isPublic, hintsEnabled });
+            const roomId = generateRoomId();
+            console.log('[DEBUG] Generated Room ID:', roomId);
 
-        const room = new GameRoom(roomId, safePlayers, username, socket.id, safeRounds, parseInt(drawingTime) || 60, isPublic);
-        rooms[roomId] = room;
+            // Strict server-side clamping: Max 10 players, Max 10 rounds
+            const safePlayers = Math.min(10, Math.max(2, parseInt(maxPlayers) || 8));
+            const safeRounds = Math.min(10, Math.max(1, parseInt(rounds) || 5));
 
-        socket.join(roomId);
-        socket.emit('room_created', roomId);
-        room.broadcastPlayerList();
+            const room = new GameRoom(
+                roomId,
+                safePlayers,
+                hostName,
+                socket.id,
+                safeRounds,
+                parseInt(drawTime) || 60,
+                isPublic,
+                hintsEnabled
+            );
+            console.log('[DEBUG] Room object created');
+
+            rooms[roomId] = room;
+            console.log('[DEBUG] Room added to global store');
+
+            socket.join(roomId);
+            socket.emit('room_created', roomId);
+            room.broadcastPlayerList();
+            console.log('[DEBUG] Room creation successful');
+        } catch (error) {
+            console.error('[CRITICAL ERROR] in create_room:', error);
+            socket.emit('error', 'Server error creating room');
+        }
     });
 
     socket.on('quick_join', ({ username }) => {
@@ -621,8 +579,9 @@ io.on('connection', (socket) => {
 
             if (removeIndex !== -1) {
                 room.canvasState.splice(removeIndex);
-                io.to(room.id).emit('clear');
-                if (room.canvasState.length > 0) {
+                if (room.canvasState.length === 0) {
+                    io.to(room.id).emit('clear');
+                } else {
                     io.to(room.id).emit('canvas_history', room.canvasState);
                 }
             }
@@ -665,6 +624,36 @@ io.on('connection', (socket) => {
         return Object.values(rooms).find(r => r.players.some(p => p.id === socket.id));
     }
 });
+
+// --- External Word Fetching ---
+async function fetchNewWords() {
+    try {
+        console.log("[INFO] Fetching new words from internet...");
+        // Fetch 50 random nouns
+        const response = await fetch('https://random-word-form.herokuapp.com/random/noun?count=50');
+        if (response.ok) {
+            const newWords = await response.json();
+            let addedCount = 0;
+            newWords.forEach(word => {
+                // Capitalize first letter
+                const cleanWord = word.charAt(0).toUpperCase() + word.slice(1);
+                // Add if not exists and reasonable length (STRICTER: max 8 chars for simplicity)
+                if (!WORDS.includes(cleanWord) && cleanWord.length <= 8) {
+                    WORDS.push(cleanWord);
+                    addedCount++;
+                }
+            });
+            console.log(`[INFO] Added ${addedCount} new words from internet. Total words: ${WORDS.length}`);
+        } else {
+            console.warn("[WARN] Failed to fetch words:", response.statusText);
+        }
+    } catch (err) {
+        console.error("[ERROR] Could not fetch words:", err.message);
+    }
+}
+
+// Fetch words on startup
+fetchNewWords();
 
 const PORT = process.env.PORT || 8000;
 server.listen(PORT, '0.0.0.0', () => {

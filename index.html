@@ -37,10 +37,10 @@
             <div class="create-section">
                 <div class="settings-row">
                     <div class="setting-item">
-                        <label for="room-type" class="setting-label">Type</label>
-                        <select id="room-type" class="setting-input">
-                            <option value="private">Private</option>
-                            <option value="public">Public</option>
+                        <label for="hint-toggle" class="setting-label">Hints</label>
+                        <select id="hint-toggle" class="setting-input">
+                            <option value="true">On</option>
+                            <option value="false">Off</option>
                         </select>
                     </div>
                     <div class="setting-item">
@@ -102,6 +102,49 @@
                 <p>Advertisement Space</p>
                 <!-- Paste your AdSense code here later -->
             </div>
+        </div>
+        <!-- AD PLACEHOLDER (LOBBY) -->
+        <div class="ad-slot" id="ad-lobby">
+            <p>Advertisement Space</p>
+            <!-- Paste your AdSense code here later -->
+        </div>
+    </div>
+    </div>
+
+    <!-- Create Room Type Overlay -->
+    <div id="creation-overlay" class="overlay-screen hidden">
+        <div class="menu-content" style="z-index: 2000;">
+            <h2>Select Room Type</h2>
+            <p>Choose who can join your game</p>
+            <div style="margin-top: 20px;">
+                <button id="create-public-btn" style="background: linear-gradient(135deg, #3498db, #2980b9);">
+                    🌍 Create Public Room
+                </button>
+                <button id="create-private-btn" style="background: linear-gradient(135deg, #27ae60, #2ecc71);">
+                    🔒 Create Private Room
+                </button>
+                <button id="cancel-creation-btn" style="background: #e74c3c; margin-top: 10px;">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Finding Room Overlay (Quick Join) -->
+    <div id="finding-room-overlay" class="overlay-screen hidden">
+        <div class="menu-content" style="z-index: 2000;">
+            <h2 style="color: white; margin-bottom: 15px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Finding a public game
+                for
+                you...</h2>
+
+            <div class="spinner" style="margin: 20px auto;"></div>
+
+            <!-- AD PLACEHOLDER (FINDING) -->
+            <div class="ad-slot" id="ad-finding" style="margin: 20px auto; height: 250px; background: rgba(0,0,0,0.2);">
+                <!-- Ad will be injected here -->
+            </div>
+
+            <p id="finding-status">Please wait...</p>
         </div>
     </div>
 
