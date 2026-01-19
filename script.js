@@ -625,7 +625,7 @@ function startDraw(e) {
     // Draw dot using arc for better visibility
     drawDot(x, y, currentSettings.color, currentSettings.size, currentSettings.isEraser);
 
-    socket.emit('draw', {
+    const drawData = {
         type: 'start',
         x: x / ui.canvas.width,
         y: y / ui.canvas.height,
@@ -634,7 +634,10 @@ function startDraw(e) {
         isEraser: currentSettings.isEraser,
         w: ui.canvas.width,
         h: ui.canvas.height
-    });
+    };
+
+    receivedHistory.push(drawData); // Save to local history immediately needed for resize/redraw
+    socket.emit('draw', drawData);
 }
 
 function drawDot(x, y, color, size, isEraser) {
@@ -653,7 +656,7 @@ function draw(e) {
 
     drawRec({ x, y, prevX: currentPos.x, prevY: currentPos.y, color: currentSettings.color, size: currentSettings.size, isEraser: currentSettings.isEraser });
 
-    socket.emit('draw', {
+    const drawData = {
         type: 'drag',
         x: x / ui.canvas.width,
         y: y / ui.canvas.height,
@@ -662,7 +665,11 @@ function draw(e) {
         color: currentSettings.color,
         size: currentSettings.size,
         isEraser: currentSettings.isEraser
-    });
+    };
+
+    receivedHistory.push(drawData); // Save to local history immediately needed for resize/redraw
+
+    socket.emit('draw', drawData);
 
     currentPos = { x, y };
 }
