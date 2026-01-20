@@ -231,6 +231,24 @@ function init() {
 
     tools.undo.addEventListener('click', () => {
         if (canDraw) {
+            // Optimistic Client-Side Undo
+            if (receivedHistory.length > 0) {
+                let removeIndex = -1;
+                // Find the last 'start' event locally
+                for (let i = receivedHistory.length - 1; i >= 0; i--) {
+                    if (receivedHistory[i].type === 'start') {
+                        removeIndex = i;
+                        break;
+                    }
+                }
+
+                if (removeIndex !== -1) {
+                    receivedHistory.splice(removeIndex); // Remove the stroke locally
+                    ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height); // Clear canvas
+                    replayHistory(); // Redraw remaining history
+                }
+            }
+            // Send to server to sync state for others and persistent storage
             socket.emit('undo');
         }
     });
