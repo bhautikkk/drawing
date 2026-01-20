@@ -445,31 +445,44 @@ canvas {
 }
 
 .tool-btn {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 2px solid #ddd;
+    width: 44px; /* Slightly larger */
+    height: 44px;
+    border-radius: 12px; /* Soft square looks more modern than full circle */
+    border: none;
     background: #fff;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
     color: #555;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
 }
 
 .tool-btn:hover {
-    background: #f0f0f0;
+    transform: translateY(-2px);
+    box-shadow: 0 7px 14px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.1);
+    color: #2f80ed;
+}
+
+.tool-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .tool-btn.active {
-    background: #ddd;
-    border-color: #999;
+    background: #e6f7ff;
+    color: #2f80ed;
+    border: 2px solid #2f80ed;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .color-btn {
-    border: none;
-    box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.2);
+    border: 2px solid #fff;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
 }
 
 /* Palette */

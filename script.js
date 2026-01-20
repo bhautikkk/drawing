@@ -89,6 +89,9 @@ function init() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
+    // Fix: Initialize color button with default color (black)
+    tools.colorBtn.style.backgroundColor = currentSettings.color;
+
     // Menu Events
     // Creation Overlay Logic
     const createRoomBtn = document.getElementById('create-room-btn');
