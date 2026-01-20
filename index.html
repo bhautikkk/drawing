@@ -20,6 +20,19 @@
     <!-- Google AdSense Verification -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5830762088139920"
         crossorigin="anonymous"></script>
+
+    <!-- FORCE UNREGISTER SERVICE WORKER (Fix for PWA Cache Issue) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                for (let registration of registrations) {
+                    console.log('Unregistering SW:', registration);
+                    registration.unregister();
+                }
+            });
+            // Also force reload if strictly necessary, but unregistering usually enough for next reload
+        }
+    </script>
 </head>
 
 <body>
