@@ -606,7 +606,7 @@ io.on('connection', (socket) => {
 
             let removeIndex = -1;
             for (let i = room.canvasState.length - 1; i >= 0; i--) {
-                if (room.canvasState[i].type === 'start') {
+                if (room.canvasState[i].type === 'start' || room.canvasState[i].type === 'fill') {
                     removeIndex = i;
                     break;
                 }

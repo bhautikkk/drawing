@@ -55,6 +55,7 @@ const tools = {
     palette: document.getElementById('color-palette'),
     size: document.getElementById('brush-size'),
     eraser: document.getElementById('eraser-btn'),
+    fill: document.getElementById('fill-btn'),
     clear: document.getElementById('clear-btn'),
     undo: document.getElementById('undo-btn'),
     options: document.querySelectorAll('.color-option')
@@ -229,14 +230,32 @@ function init() {
         tools.eraser.classList.toggle('active', currentSettings.isEraser);
     });
 
+    tools.fill.addEventListener('click', () => {
+        if (!canDraw) return;
+
+        const color = '#000000'; // Hardcoded black as requested
+
+        // Optimistic update
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, ui.canvas.width, ui.canvas.height);
+
+        const drawData = {
+            type: 'fill',
+            color: color
+        };
+
+        receivedHistory.push(drawData);
+        socket.emit('draw', drawData);
+    });
+
     tools.undo.addEventListener('click', () => {
         if (canDraw) {
             // Optimistic Client-Side Undo
             if (receivedHistory.length > 0) {
                 let removeIndex = -1;
-                // Find the last 'start' event locally
+                // Find the last 'start' or 'fill' event locally
                 for (let i = receivedHistory.length - 1; i >= 0; i--) {
-                    if (receivedHistory[i].type === 'start') {
+                    if (receivedHistory[i].type === 'start' || receivedHistory[i].type === 'fill') {
                         removeIndex = i;
                         break;
                     }
@@ -783,6 +802,9 @@ function drawRemote(data) {
 
     if (data.type === 'start') {
         drawDot(x, y, data.color, data.size, data.isEraser);
+    } else if (data.type === 'fill') {
+        ctx.fillStyle = data.color || '#000000';
+        ctx.fillRect(0, 0, ui.canvas.width, ui.canvas.height);
     } else {
         const prevX = data.prevX * ui.canvas.width;
         const prevY = data.prevY * ui.canvas.height;
