@@ -148,6 +148,35 @@
         </div>
     </div>
 
+    <!-- Reconnecting Overlay -->
+    <div id="reconnecting-overlay" class="overlay-screen hidden" style="z-index: 3000; background: rgba(0,0,0,0.85);">
+        <div class="menu-content">
+            <h2 style="color: #e74c3c;">Connection Lost</h2>
+            <div class="spinner" style="border-top-color: #e74c3c; margin: 20px auto;"></div>
+            <p>Reconnecting to server...</p>
+        </div>
+    </div>
+
+    <!-- Status Message Overlay (Generic) -->
+    <div id="status-overlay" class="overlay-screen hidden" style="z-index: 2900;">
+        <div class="menu-content">
+            <h2 id="status-title">Notice</h2>
+            <p id="status-message">Something happened.</p>
+            <button id="status-ok-btn" style="margin-top:20px; background:#3498db;">OK</button>
+        </div>
+    </div>
+
+    <!-- Empty Room Overlay (All Players Left) -->
+    <div id="empty-room-overlay" class="overlay-screen hidden" style="z-index: 2900;">
+        <div class="menu-content">
+            <h2>Everyone left! 😢</h2>
+            <p>You are the only one here.</p>
+            <button id="empty-home-btn" style="width: 100%; background: #95a5a6; margin-top: 20px;">Return Home</button>
+            <button id="empty-join-btn" style="width: 100%; background: #f39c12; margin-top: 10px;">⚡ Find New
+                Game</button>
+        </div>
+    </div>
+
     <!-- Drawing Screen -->
     <div id="drawing-screen" class="screen">
         <!-- Game Header: Timer, Word, Round Info -->

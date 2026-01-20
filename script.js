@@ -35,6 +35,18 @@ const ui = {
         players: document.getElementById('lobby-player-list'),
         count: document.getElementById('player-count'),
         startBtn: document.getElementById('start-game-btn')
+    },
+    reconnecting: document.getElementById('reconnecting-overlay'),
+    status: {
+        overlay: document.getElementById('status-overlay'),
+        title: document.getElementById('status-title'),
+        msg: document.getElementById('status-message'),
+        btn: document.getElementById('status-ok-btn')
+    },
+    emptyRoom: {
+        overlay: document.getElementById('empty-room-overlay'),
+        homeBtn: document.getElementById('empty-home-btn'),
+        joinBtn: document.getElementById('empty-join-btn')
     }
 };
 
@@ -184,6 +196,7 @@ function init() {
             if (text) {
                 socket.emit('send_message', text);
                 ui.chatInput.value = '';
+                ui.chatInput.blur(); // Dismiss keyboard on mobile
             }
         }
     });
@@ -231,6 +244,53 @@ function init() {
 
     // Handle Resize Logic safer
     setTimeout(resizeCanvas, 500);
+
+    // Status Overlay Logic
+    ui.status.btn.addEventListener('click', () => {
+        ui.status.overlay.classList.add('hidden');
+        if (shouldRedirectToMenu === true || shouldRedirectToMenu === 'menu') {
+            shouldRedirectToMenu = false;
+            showScreen('menu');
+        } else if (shouldRedirectToMenu === 'reload') {
+            shouldRedirectToMenu = false;
+            location.reload();
+        }
+    });
+
+    // Empty Room Logic
+    ui.emptyRoom.homeBtn.addEventListener('click', () => location.reload());
+    ui.emptyRoom.joinBtn.addEventListener('click', () => {
+        ui.emptyRoom.overlay.classList.add('hidden');
+        // Trigger generic "Finding Room" logic, but we need to ensure we leave current room first
+        // Since server already moved us to LOBBY, we might still be in room data. 
+        // Best approach: Reload page with a query param or just simple reload then auto-click?
+        // Simpler: Just emit quick_join again with userId.
+        const name = ui.menu.username.value || "Player";
+
+        // Show Finding Overlay
+        const findingOverlay = document.getElementById('finding-room-overlay');
+        const statusText = document.getElementById('finding-status');
+        findingOverlay.classList.remove('hidden');
+        statusText.textContent = "Finding a new game...";
+
+        // Timeout to simulate search/wait
+        setTimeout(() => {
+            // Pass current room ID (from code display) to exclude it from search
+            const currentRoomId = ui.lobby.code.innerText;
+            socket.emit('quick_join', { username: name, userId, excludeRoomId: currentRoomId });
+            findingOverlay.classList.add('hidden');
+        }, 2000);
+    });
+}
+
+let shouldRedirectToMenu = false;
+
+function showStatus(title, message, redirect = false, btnText = "OK") {
+    ui.status.title.textContent = title;
+    ui.status.msg.textContent = message;
+    ui.status.btn.textContent = btnText;
+    ui.status.overlay.classList.remove('hidden');
+    shouldRedirectToMenu = redirect;
 }
 
 let lastWidth = 0;
@@ -299,6 +359,9 @@ function showScreen(screenName) {
 // --- Socket Events ---
 
 socket.on('connect', () => {
+    // Hide reconnecting overlay immediately
+    ui.reconnecting.classList.add('hidden');
+
     myId = socket.id;
     console.log("Connected", myId, "User ID:", userId);
 
@@ -343,7 +406,19 @@ socket.on('joined_room', (id) => {
     showScreen('lobby');
 });
 
-socket.on('error', (msg) => showError(msg));
+socket.on('error', (msg) => {
+    // Hide overlays if any (e.g. finding room)
+    document.getElementById('finding-room-overlay').classList.add('hidden');
+    ui.reconnecting.classList.add('hidden');
+
+    if (msg === 'Room Invalid' || msg === 'Room is full') {
+        showStatus("Error", msg, true); // Redirect to menu
+    } else if (msg === 'NO_PUBLIC_ROOMS') {
+        showStatus("Notice", "No public room is available right now.", 'reload', "Return Home");
+    } else {
+        showError(msg);
+    }
+});
 
 socket.on('update_players', (data) => {
     // data.players = list of players
@@ -484,10 +559,10 @@ socket.on('game_over', (players) => {
         podium.appendChild(div);
     });
 
-    // Auto-refresh after 5 seconds
-    setTimeout(() => {
-        location.reload();
-    }, 5000);
+    // Auto-refresh REMOVED.
+    // setTimeout(() => {
+    //     location.reload();
+    // }, 5000);
 
     document.getElementById('return-home-btn').onclick = () => location.reload();
 });
@@ -506,6 +581,10 @@ socket.on('play_sound', (data) => {
         const audio = new Audio('reveal.mp3');
         audio.play().catch(e => console.log("Audio play failed:", e));
     }
+});
+
+socket.on('game_ended_no_players', () => {
+    ui.emptyRoom.overlay.classList.remove('hidden');
 });
 
 // --- Helpers ---

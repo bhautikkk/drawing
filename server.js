@@ -475,14 +475,18 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('quick_join', ({ username, userId }) => {
-        // Find public room with space
-        const availableRoom = Object.values(rooms).find(r => r.isPublic && r.players.length < r.maxPlayers);
+    socket.on('quick_join', ({ username, userId, excludeRoomId }) => {
+        // Find public room with space, excluding the room the user is currently in (or just left)
+        const availableRoom = Object.values(rooms).find(r =>
+            r.isPublic &&
+            r.players.length < r.maxPlayers &&
+            r.id !== excludeRoomId
+        );
 
         if (availableRoom) {
             joinRoomLogic(socket, availableRoom, username, userId);
         } else {
-            socket.emit('error', 'No public rooms available. Create one!');
+            socket.emit('error', 'NO_PUBLIC_ROOMS');
         }
     });
 
@@ -492,6 +496,16 @@ io.on('connection', (socket) => {
             joinRoomLogic(socket, room, username, userId);
         } else {
             socket.emit('error', 'Invalid Room Code');
+        }
+    });
+
+    // Alias for explicit rejoins
+    socket.on('rejoin_game', ({ code, userId }) => {
+        const room = rooms[code];
+        if (room) {
+            joinRoomLogic(socket, room, room.players.find(p => p.userId === userId)?.name || "Player", userId);
+        } else {
+            socket.emit('error', 'Room Invalid'); // Client will redirect to menu
         }
     });
 
@@ -611,6 +625,20 @@ io.on('connection', (socket) => {
 
 
 
+    socket.on('leave_room', () => {
+        const room = getRoom(socket);
+        if (room) {
+            const isEmpty = room.removePlayer(socket.id);
+            socket.leave(room.id);
+            if (isEmpty) {
+                if (room.timer) clearInterval(room.timer);
+                delete rooms[room.id];
+            } else {
+                room.broadcastPlayerList();
+            }
+        }
+    });
+
     socket.on('disconnect', () => {
         const room = getRoom(socket);
         if (room) {
@@ -646,8 +674,10 @@ io.on('connection', (socket) => {
                         if (stateBefore !== 'LOBBY') {
                             if (room.players.length < 2) {
                                 if (room.timer) clearInterval(room.timer);
-                                room.state = 'LOBBY';
-                                room.broadcast("state_update", { state: 'LOBBY' });
+                                // Close the room so no one else can join
+                                delete rooms[room.id];
+                                console.log(`[DEBUG] Room ${room.id} closed due to lack of players.`);
+                                room.broadcast("game_ended_no_players"); // Notify remaining player
                             } else if (wasDrawer) {
                                 // Logic reuse: The socket that disconnected was the drawer.
                                 // If they are gone now, we skip.

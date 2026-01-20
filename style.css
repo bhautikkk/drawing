@@ -78,9 +78,8 @@ body.game-active {
     border-radius: 25px;
     text-align: center;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2), 0 0 15px rgba(255, 255, 255, 0.5);
-    width: 90%;
     max-width: 420px;
-    color: #333;
+    color: #fff;
     border: 1px solid rgba(255, 255, 255, 0.6);
     position: relative;
     overflow: hidden;
@@ -955,4 +954,31 @@ canvas {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* --- Toast Notification --- */
+#toast-container {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+#toast-container.hidden {
+    opacity: 0;
+}
+
+#toast-message {
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    max-width: 80vw;
 }
