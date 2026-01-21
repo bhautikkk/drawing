@@ -569,9 +569,17 @@ io.on('connection', (socket) => {
     socket.on('draw', (data) => {
         const room = getRoom(socket);
         if (room && room.state === 'DRAWING' && room.getDrawer().id === socket.id) {
-            room.canvasState.push({ type: 'draw', ...data });
-            console.log(`[DEBUG] Saved draw stroke. Total: ${room.canvasState.length}`); // DEBUG
-            socket.to(room.id).emit('draw', data);
+            if (Array.isArray(data)) {
+                // Handle batched data
+                room.canvasState.push(...data);
+                // console.log(`[DEBUG] Saved batch of ${data.length}. Total: ${room.canvasState.length}`);
+                socket.to(room.id).emit('draw', data);
+            } else {
+                // Handle single legacy data
+                room.canvasState.push({ type: 'draw', ...data });
+                // console.log(`[DEBUG] Saved draw stroke. Total: ${room.canvasState.length}`);
+                socket.to(room.id).emit('draw', data);
+            }
         }
     });
 

@@ -420,17 +420,23 @@ canvas {
 /* Tools (Floating or Bottom) */
 #drawing-tools {
     position: absolute;
-    bottom: 10px;
+    bottom: 20px;
+    /* More breathing room */
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(255, 255, 255, 0.95);
-    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    /* Glassmorphism */
+    -webkit-backdrop-filter: blur(10px);
+    padding: 6px 20px;
     border-radius: 50px;
     display: flex;
     align-items: center;
     gap: 15px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-    transition: opacity 0.3s;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    /* Soft, diffused shadow */
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 100;
 }
 
 #drawing-tools.disabled {
@@ -445,44 +451,58 @@ canvas {
 }
 
 .tool-btn {
-    width: 44px; /* Slightly larger */
-    height: 44px;
-    border-radius: 12px; /* Soft square looks more modern than full circle */
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    /* Perfect circle */
     border: none;
-    background: #fff;
-    font-size: 1.3rem;
+    background: transparent;
+    /* Cleaner look, only icon visible usually */
+    font-size: 1.4rem;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    color: #555;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
-    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
-    position: relative;
-    overflow: hidden;
+    color: #444;
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .tool-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 7px 14px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.1);
+    background: #f0f2f5;
+    /* Subtle hover bg */
     color: #2f80ed;
+    transform: scale(1.05);
 }
 
 .tool-btn:active {
-    transform: translateY(1px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transform: scale(0.95);
+    background: #e4e6eb;
 }
 
 .tool-btn.active {
-    background: #e6f7ff;
-    color: #2f80ed;
-    border: 2px solid #2f80ed;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+    background: #e7f3ff;
+    color: #1877f2;
+    /* Facebook/Messenger blue tone */
+    box-shadow: none;
+    /* Flat design */
 }
 
+/* Specific styling for the color button to make it pop */
 .color-btn {
-    border: 2px solid #fff;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #e0e0e0;
+    /* Double ring effect */
+    transition: transform 0.2s;
+    margin-right: 5px;
+}
+
+.color-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px #2f80ed;
 }
 
 /* Palette */

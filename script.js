@@ -83,6 +83,15 @@ let storedWord = ""; // Store secret word for drawer
 let disconnectTimer = null;
 // Overlay removed as per user request
 
+// --- Performance Optimization: Draw Buffer ---
+let drawBuffer = [];
+setInterval(() => {
+    if (drawBuffer.length > 0) {
+        socket.emit('draw', drawBuffer);
+        drawBuffer = [];
+    }
+}, 30); // Flush every 30ms (~33 FPS)
+
 
 // --- Initialization ---
 function init() {
@@ -565,8 +574,13 @@ socket.on('timer_update', (time) => {
 });
 
 socket.on('draw', (data) => {
-    receivedHistory.push(data); // FIX: Store stroke for replay
-    drawRemote(data);
+    if (Array.isArray(data)) {
+        receivedHistory.push(...data);
+        data.forEach(item => drawRemote(item));
+    } else {
+        receivedHistory.push(data); // FIX: Store stroke for replay
+        drawRemote(data);
+    }
 });
 
 socket.on('clear', () => {
@@ -755,8 +769,10 @@ function startDraw(e) {
         h: ui.canvas.height
     };
 
-    receivedHistory.push(drawData); // Save to local history immediately needed for resize/redraw
-    socket.emit('draw', drawData);
+    receivedHistory.push(drawData);
+    // Batching: Push to buffer instead of emitting immediately
+    drawBuffer.push(drawData);
+    // socket.emit('draw', drawData);
 }
 
 function drawDot(x, y, color, size, isEraser) {
@@ -786,9 +802,10 @@ function draw(e) {
         isEraser: currentSettings.isEraser
     };
 
-    receivedHistory.push(drawData); // Save to local history immediately needed for resize/redraw
-
-    socket.emit('draw', drawData);
+    receivedHistory.push(drawData);
+    // Batching: Push to buffer instead of emitting immediately
+    drawBuffer.push(drawData);
+    // socket.emit('draw', drawData);
 
     currentPos = { x, y };
 }
@@ -841,8 +858,8 @@ function getPos(e) {
         clientY = e.clientY;
     }
 
-    // DEBUG LOG
-    console.log(`Event: ${e.type}, X: ${clientX}, Y: ${clientY}, CanvasRect: ${rect.left},${rect.top}`);
+    // DEBUG LOG REMOVED for performance
+    // console.log(`Event: ${e.type}, X: ${clientX}, Y: ${clientY}, CanvasRect: ${rect.left},${rect.top}`);
 
     return {
         x: clientX - rect.left,
