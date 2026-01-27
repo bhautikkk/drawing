@@ -79,6 +79,7 @@ let currentSettings = {
     size: 5,
     isEraser: false
 };
+let currentBackgroundColor = '#ffffff'; // Track background color
 let storedWord = ""; // Store secret word for drawer
 let disconnectTimer = null;
 // Overlay removed as per user request
@@ -128,7 +129,7 @@ function init() {
     function doCreateRoom(isPublic) {
         const username = ui.menu.username.value.trim();
         const rounds = parseInt(document.getElementById('rounds-input').value);
-        const maxPlayers = parseInt(document.getElementById('players-input').value);
+        const maxPlayers = 10; // Default fixed to 10
         const drawTime = parseInt(document.getElementById('time-input').value);
         const hintsEnabled = document.getElementById('hint-toggle').value === 'true';
 
@@ -246,6 +247,7 @@ function init() {
         if (!canDraw) return;
 
         const color = '#000000'; // Hardcoded black as requested
+        currentBackgroundColor = color;
 
         // Optimistic update
         ctx.fillStyle = color;
@@ -286,6 +288,7 @@ function init() {
 
     tools.clear.addEventListener('click', () => {
         if (canDraw) {
+            currentBackgroundColor = '#ffffff';
             ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
             socket.emit('clear');
         }
@@ -344,6 +347,8 @@ function showStatus(title, message, redirect = false, btnText = "OK") {
 
 let lastWidth = 0;
 let lastHeight = 0;
+let lastParentWidth = 0;
+let lastParentHeight = 0;
 
 function resizeCanvas() {
     // Only resize if game screen is active
@@ -351,32 +356,56 @@ function resizeCanvas() {
         const parent = ui.canvas.parentElement;
         if (parent.clientWidth && parent.clientHeight) {
 
-            const newWidth = parent.clientWidth;
-            const newHeight = parent.clientHeight;
+            const availableWidth = parent.clientWidth;
+            const availableHeight = parent.clientHeight;
+
+            // Standard Aspect Ratio (4:3) - Ensures consistent drawing field for all players
+            // Mobile (Portrait) will constrain by Width (Width < Height * Ratio) -> Width limited, Height auto-calc
+            // Desktop (Wide) will constrain by Height (Width > Height * Ratio) -> Height limited, Width auto-calc
+            const TARGET_ASPECT_RATIO = 4 / 3;
 
             // Mobile Keyboard Detection Strategy:
-            // If width is roughly the same (tolerance for scrollbar changes), but height significantly decreases,
-            // it's likely the virtual keyboard opening. We should IGNORE this resize event to prevent canvas clearing.
-            // Exception: If lastWidth was 0 (first load), we must resize.
-
-            if (lastWidth > 0 && Math.abs(newWidth - lastWidth) < 50 && newHeight < lastHeight * 0.8) {
+            // Check against PARENT dimensions.
+            if (lastParentWidth > 0 && Math.abs(availableWidth - lastParentWidth) < 50 && availableHeight < lastParentHeight * 0.8) {
                 console.log("[DEBUG] Ignored resize: Likely mobile keyboard open.");
                 return;
             }
 
-            // Only resize if dimensions actually changed
-            if (ui.canvas.width !== newWidth || ui.canvas.height !== newHeight) {
-                ui.canvas.width = newWidth;
-                ui.canvas.height = newHeight;
+            let finalWidth = availableWidth;
+            let finalHeight = availableHeight;
 
-                lastWidth = newWidth;
-                lastHeight = newHeight;
+            // Fit logic (Letterboxing)
+            if (availableWidth / availableHeight > TARGET_ASPECT_RATIO) {
+                // Too wide (Desktop)
+                finalHeight = availableHeight;
+                finalWidth = finalHeight * TARGET_ASPECT_RATIO;
+            } else {
+                // Too tall (Mobile Portrait)
+                finalWidth = availableWidth;
+                finalHeight = finalWidth / TARGET_ASPECT_RATIO;
+            }
+
+            // Round to avoid pixel issues
+            finalWidth = Math.floor(finalWidth);
+            finalHeight = Math.floor(finalHeight);
+
+            // Only resize if dimensions actually changed
+            if (ui.canvas.width !== finalWidth || ui.canvas.height !== finalHeight) {
+                ui.canvas.width = finalWidth;
+                ui.canvas.height = finalHeight;
+
+                lastWidth = finalWidth;
+                lastHeight = finalHeight;
+
+                // Update Parent Tracking
+                lastParentWidth = availableWidth;
+                lastParentHeight = availableHeight;
 
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
 
                 // Re-apply current drawing settings
-                ctx.strokeStyle = currentSettings.isEraser ? '#ffffff' : currentSettings.color;
+                ctx.strokeStyle = currentSettings.isEraser ? currentBackgroundColor : currentSettings.color;
                 ctx.lineWidth = currentSettings.size;
 
                 // Replay history if exists, as resize clears canvas
@@ -476,6 +505,11 @@ socket.on('update_players', (data) => {
 
     renderPlayers(data.players, data.drawerId, data.state);
 
+    // Voice Chat Sync
+    if (typeof voiceManager !== 'undefined') {
+        voiceManager.updatePeers(data.players);
+    }
+
     // Check if game started
     if (data.state !== 'LOBBY' && !screens.game.classList.contains('active')) {
         showScreen('game');
@@ -566,7 +600,8 @@ socket.on('choose_word', (words) => {
 
 socket.on('your_word', (word) => {
     storedWord = word;
-    ui.word.textContent = `Word: ${word}`;
+    ui.word.textContent = `DRAW THIS: ${word}`;
+    setColor('#000000'); // Reset to black on new turn
 });
 
 socket.on('timer_update', (time) => {
@@ -585,6 +620,7 @@ socket.on('draw', (data) => {
 
 socket.on('clear', () => {
     receivedHistory = []; // FIX: Clear history locally
+    currentBackgroundColor = '#ffffff';
     ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
 });
 
@@ -777,7 +813,7 @@ function startDraw(e) {
 
 function drawDot(x, y, color, size, isEraser) {
     ctx.beginPath();
-    ctx.fillStyle = isEraser ? '#ffffff' : color;
+    ctx.fillStyle = isEraser ? currentBackgroundColor : color;
     ctx.arc(x, y, size / 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.closePath();
@@ -823,6 +859,7 @@ function drawRemote(data) {
     if (data.type === 'start') {
         drawDot(x, y, data.color, data.size, data.isEraser);
     } else if (data.type === 'fill') {
+        currentBackgroundColor = data.color || '#000000';
         ctx.fillStyle = data.color || '#000000';
         ctx.fillRect(0, 0, ui.canvas.width, ui.canvas.height);
     } else {
@@ -834,7 +871,7 @@ function drawRemote(data) {
 
 function drawRec(data) {
     ctx.beginPath();
-    ctx.strokeStyle = data.isEraser ? '#ffffff' : data.color;
+    ctx.strokeStyle = data.isEraser ? currentBackgroundColor : data.color;
     ctx.lineWidth = data.size;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -869,3 +906,327 @@ function getPos(e) {
 
 // Start
 init();
+
+
+// --- Helper: Status/Error Modal ---
+function showStatus(title, message, redirect = false, btnText = "OK") {
+    if (ui.status && ui.status.overlay) {
+        ui.status.title.textContent = title;
+        ui.status.msg.textContent = message;
+        ui.status.btn.textContent = btnText;
+        ui.status.overlay.classList.remove('hidden');
+        ui.status.btn.onclick = () => {
+            ui.status.overlay.classList.add('hidden');
+        };
+    } else {
+        alert(`${title}: ${message}`);
+    }
+}
+
+// --- Voice Chat Implementation ---
+socket.on('voice_signal', (data) => {
+    // console.log("[Voice] Signal received:", data.signal.type);
+    voiceManager.handleSignal(data.senderId, data.signal);
+});
+
+
+
+const voiceManager = {
+    peers: {}, // { socketId: RTCPeerConnection }
+    localStream: null,
+    isMicOn: false,
+    config: {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    },
+
+    init() {
+        this.btn = document.getElementById('mic-btn');
+        this.container = document.getElementById('mic-container');
+
+        // Create a hidden container for audio elements
+        this.audioContainer = document.createElement('div');
+        this.audioContainer.style.display = 'none';
+        document.body.appendChild(this.audioContainer);
+
+        if (this.btn) {
+            // Touchstart for faster mobile response
+            this.btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleMic();
+            });
+            this.btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.toggleMic();
+            });
+        }
+    },
+
+    updatePeers(players) {
+        if (players.length > 0) {
+            this.container.classList.remove('hidden');
+        } else {
+            this.container.classList.add('hidden');
+            this.cleanup();
+            return;
+        }
+
+        const activeIds = new Set(players.map(p => p.id));
+
+        Object.keys(this.peers).forEach(id => {
+            if (!activeIds.has(id)) {
+                this.removePeer(id);
+            }
+        });
+
+        players.forEach(p => {
+            if (p.id !== myId && !this.peers[p.id]) {
+                const shouldInitiate = myId < p.id;
+                this.addPeer(p.id, shouldInitiate);
+            }
+        });
+    },
+
+    async toggleMic() {
+        // Force reset if stream is invalid (ended or no tracks)
+        if (this.localStream && (!this.localStream.active || this.localStream.getAudioTracks().length === 0)) {
+            console.warn("[Voice] Found invalid stream, resetting.");
+            this.localStream = null;
+        }
+
+        if (!this.localStream) {
+            // Check for Secure Context / API availability
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.error("[Voice] navigator.mediaDevices not responding");
+                showStatus("Mic Error", "Microphone access is not supported in this browser or requires HTTPS. If on mobile, try using 'localhost' via USB debugging or set up HTTPS.", false, "OK");
+                return;
+            }
+
+            let stream = null;
+            try {
+                console.log("[Voice] Requesting Mic Permission...");
+                // Mobile best practice: simple constraints to avoid OverconstrainedError
+                stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            } catch (err) {
+                console.error("[Voice] Mic Access Error:", err.name, err);
+
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    showStatus("Permission Denied", "Microphone access was denied. Check your Browser AND System (OS) Privacy limits.", false, "OK");
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    showStatus("No Mic Found", "No microphone device was found on this system.", false, "OK");
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    showStatus("Mic Unavailable", "Your microphone is busy or not readable. Check system settings or close other voice apps.", false, "OK");
+                } else if (err.name === 'OverconstrainedError') {
+                    showStatus("Mic Error", "Microphone constraints (audio/video) could not be satisfied.", false, "OK");
+                } else {
+                    showStatus("Microphone Error", `Unexpected error: ${err.name} - ${err.message}`, false, "OK");
+                }
+                return; // Stop here if we couldn't get the stream
+            }
+
+            // Success!
+            this.localStream = stream;
+
+            // Attach to peers - Separate from permission logic
+            // If this fails, we still have the mic, so we don't show "Permission Denied"
+            try {
+                Object.values(this.peers).forEach(pc => {
+                    this.attachStreamToPeer(pc, stream);
+                });
+            } catch (e) {
+                console.warn("[Voice] Error attaching to peers:", e);
+                // Non-critical: Mic is on, but maybe one peer failed. Don't block UI.
+            }
+        }
+
+        this.isMicOn = !this.isMicOn;
+        // Ensure track is enabled/disabled
+        if (this.localStream) {
+            this.localStream.getAudioTracks().forEach(track => {
+                track.enabled = this.isMicOn;
+            });
+        }
+
+        console.log("[Voice] Mic Toggled. State:", this.isMicOn);
+        this.btn.classList.toggle('mic-on', this.isMicOn);
+        this.btn.classList.toggle('mic-off', !this.isMicOn);
+    },
+
+    attachStreamToPeer(pc, stream) {
+        // Robustness: Use senders/transceivers to handle renegotiation correctly
+        const audioTrack = stream.getAudioTracks()[0];
+
+        // Check if we already have a sender for audio
+        const senders = pc.getSenders();
+        const audioSender = senders.find(s => s.track && s.track.kind === 'audio') || senders.find(s => s.track === null); // Transceiver might be null track
+
+        if (audioSender) {
+            console.log("[Voice] Replacing track on existing sender");
+            audioSender.replaceTrack(audioTrack).catch(e => console.error("ReplaceTrack Error:", e));
+
+            // Ensure transceiver is sendrecv
+            const transceiver = pc.getTransceivers().find(t => t.sender === audioSender);
+            if (transceiver) {
+                transceiver.direction = 'sendrecv';
+
+                // Manual Renegotiation: We changed direction, so we MUST send a new offer
+                // Check if stable to avoid glare (simple check, imperfect but better than nothing)
+                if (pc.signalingState === 'stable') {
+                    console.log("[Voice] Negotiating new state (sending audio)...");
+
+                    // Find the targetId for this peer connection
+                    const targetId = Object.keys(this.peers).find(key => this.peers[key] === pc);
+
+                    if (targetId) {
+                        pc.createOffer()
+                            .then(offer => pc.setLocalDescription(offer))
+                            .then(() => {
+                                socket.emit('voice_signal', {
+                                    targetId: targetId,
+                                    signal: { type: 'offer', sdp: pc.localDescription }
+                                });
+                            })
+                            .catch(e => console.error("[Voice] Renegotiation Offer Error:", e));
+                    } else {
+                        console.error("[Voice] Could not find targetId for peer during renegotiation");
+                    }
+                }
+            }
+        }
+        else {
+            console.log("[Voice] Adding new track");
+            // If no sender, just addTrack (triggers negotiation)
+            pc.addTrack(audioTrack, stream);
+        }
+    },
+
+    addPeer(targetId, initiator) {
+        console.log(`[Voice] Adding peer ${targetId} (Initiator: ${initiator})`);
+        const pc = new RTCPeerConnection(this.config);
+        this.peers[targetId] = pc;
+
+        // Debug: Log Connection States
+        pc.oniceconnectionstatechange = () => console.log(`[Voice] ICE State (${targetId}): ${pc.iceConnectionState}`);
+
+        // Prepare to receive audio
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('voice_signal', {
+                    targetId: targetId,
+                    signal: { type: 'candidate', candidate: event.candidate }
+                });
+            }
+        };
+
+        pc.ontrack = (event) => {
+            console.log(`[Voice] Received track from ${targetId}`, event.streams);
+
+            const audio = document.createElement('audio');
+            // Robustness: Construct stream if missing (common with replaceTrack)
+            audio.srcObject = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
+            audio.autoplay = true;
+            audio.playsInline = true;
+            // audio.controls = true; // Comment out for production polish (or remove)
+            audio.volume = 1.0;
+
+            this.audioContainer.appendChild(audio); // Append to DOM
+
+            // Explicit play attempt with logging
+            audio.play()
+                .then(() => console.log(`[Voice] Playing audio from ${targetId}`))
+                .catch(e => console.error(`[Voice] Audio play failed for ${targetId}:`, e));
+        };
+
+        // Attach local stream if already exists (rejoining/late join)
+        if (this.localStream) {
+            this.attachStreamToPeer(pc, this.localStream);
+        }
+
+        if (initiator) {
+            pc.createOffer()
+                .then(offer => pc.setLocalDescription(offer))
+                .then(() => {
+                    socket.emit('voice_signal', {
+                        targetId: targetId,
+                        signal: { type: 'offer', sdp: pc.localDescription }
+                    });
+                })
+                .catch(e => console.error("[Voice] Offer Error:", e));
+        }
+    },
+
+    async handleSignal(senderId, signal) {
+        if (!this.peers[senderId]) {
+            if (signal.type === 'offer') {
+                this.addPeer(senderId, false);
+            } else {
+                return;
+            }
+        }
+
+        const pc = this.peers[senderId];
+
+        try {
+            if (signal.type === 'candidate') {
+                if (signal.candidate) {
+                    await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+                }
+            } else if (signal.type === 'offer') {
+                if (pc.signalingState !== "stable") {
+                    await Promise.all([
+                        pc.setLocalDescription({ type: "rollback" }),
+                        pc.setRemoteDescription(new RTCSessionDescription(signal.sdp))
+                    ]);
+                } else {
+                    await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                }
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                socket.emit('voice_signal', {
+                    targetId: senderId,
+                    signal: { type: 'answer', sdp: pc.localDescription }
+                });
+            } else if (signal.type === 'answer') {
+                await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            }
+        } catch (err) {
+            console.error("[Voice] Signal Error:", err);
+        }
+    },
+
+    removePeer(id) {
+        if (this.peers[id]) {
+            this.peers[id].close();
+            delete this.peers[id];
+        }
+    },
+
+    cleanup() {
+        Object.keys(this.peers).forEach(id => this.removePeer(id));
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(t => t.stop());
+            this.localStream = null;
+        }
+        this.isMicOn = false;
+        if (this.btn) {
+            this.btn.classList.remove('mic-on');
+            this.btn.classList.add('mic-off');
+        }
+        if (this.audioContainer) {
+            this.audioContainer.innerHTML = '';
+        }
+    }
+};
+
+// Start Voice Manager
+voiceManager.init();
+
+// Hook into Socket Events
+socket.on('voice_signal', (data) => {
+    voiceManager.handleSignal(data.senderId, data.signal);
+});

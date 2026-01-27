@@ -171,8 +171,16 @@ class GameRoom {
     }
 
     broadcastPlayerList() {
+        const safePlayers = this.players.map(p => ({
+            id: p.id,
+            userId: p.userId,
+            name: p.name,
+            score: p.score,
+            guessed: p.guessed,
+            disconnected: p.disconnected
+        }));
         this.broadcast("update_players", {
-            players: this.players,
+            players: safePlayers,
             drawerId: this.getDrawer()?.id,
             state: this.state
         });
@@ -300,7 +308,13 @@ class GameRoom {
 
     endGame() {
         this.state = 'GAME_OVER';
-        const sorted = [...this.players].sort((a, b) => b.score - a.score);
+        const sorted = [...this.players]
+            .sort((a, b) => b.score - a.score)
+            .map(p => ({
+                id: p.id,
+                name: p.name,
+                score: p.score
+            }));
         this.broadcast("game_over", sorted);
 
         setTimeout(() => {
@@ -442,8 +456,8 @@ io.on('connection', (socket) => {
             const roomId = generateRoomId();
             console.log('[DEBUG] Generated Room ID:', roomId);
 
-            // Strict server-side clamping: Max 10 players, Max 10 rounds
-            const safePlayers = Math.min(10, Math.max(2, parseInt(maxPlayers) || 8));
+            // Strict server-side clamping: Fixed 10 players, Max 10 rounds
+            const safePlayers = 10;
             const safeRounds = Math.min(10, Math.max(1, parseInt(rounds) || 5));
 
             const room = new GameRoom(
@@ -591,6 +605,16 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- Voice Chat Signaling ---
+    socket.on('voice_signal', (data) => {
+        // data: { targetId, signal }
+        // Relay the signal to the specific target player
+        io.to(data.targetId).emit('voice_signal', {
+            senderId: socket.id,
+            signal: data.signal
+        });
+    });
+
     socket.on('send_message', (text) => {
         const room = getRoom(socket);
         if (!room) return;
@@ -623,9 +647,9 @@ io.on('connection', (socket) => {
             if (removeIndex !== -1) {
                 room.canvasState.splice(removeIndex);
                 if (room.canvasState.length === 0) {
-                    io.to(room.id).emit('clear');
+                    socket.to(room.id).emit('clear');
                 } else {
-                    io.to(room.id).emit('canvas_history', room.canvasState);
+                    socket.to(room.id).emit('canvas_history', room.canvasState);
                 }
             }
         }

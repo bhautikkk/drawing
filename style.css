@@ -311,6 +311,74 @@ button:hover::after {
     color: #666;
 }
 
+/* Mic Control */
+#mic-container {
+    margin: 0 15px;
+    display: flex;
+    align-items: center;
+}
+
+#mic-container.hidden {
+    display: none !important;
+}
+
+#mic-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+#mic-btn.mic-off {
+    background-color: #e74c3c;
+    /* Red */
+    color: white;
+}
+
+#mic-btn.mic-on {
+    background-color: #2ecc71;
+    /* Green */
+    color: white;
+    animation: pulseMic 1.5s infinite;
+}
+
+#mic-btn .mic-icon-on {
+    display: none;
+}
+
+#mic-btn .mic-icon-off {
+    display: block;
+}
+
+#mic-btn.mic-on .mic-icon-on {
+    display: block;
+}
+
+#mic-btn.mic-on .mic-icon-off {
+    display: none;
+}
+
+@keyframes pulseMic {
+    0% {
+        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(46, 204, 113, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(46, 204, 113, 0);
+    }
+}
+
 /* Game Container (Grid) */
 #game-container {
     flex: 1;
@@ -322,7 +390,8 @@ button:hover::after {
 
 /* Sidebar: Players */
 #players-sidebar {
-    width: 200px;
+    width: 280px;
+    /* Increased from 200px */
     background: transparent;
     display: flex;
     flex-direction: column;
@@ -395,9 +464,9 @@ button:hover::after {
 /* Center: Canvas */
 #canvas-area {
     flex: 1;
-    background: #fff;
+    background: rgba(0, 0, 0, 0.1);
     border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
     position: relative;
     display: flex;
     flex-direction: column;
@@ -411,9 +480,12 @@ canvas {
     background: #fff;
     cursor: crosshair;
     touch-action: none;
-    width: 100%;
-    height: 100%;
-    border-radius: 10px;
+    /* width: 100%; height: 100%; - Removed to allow aspect ratio control via JS */
+    max-width: 100%;
+    max-height: 100%;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    border: 2px solid #444;
+    border-radius: 6px;
     /* Log: Maintain rounded look */
 }
 
@@ -466,6 +538,38 @@ canvas {
     color: #444;
     transition: all 0.2s ease;
     cursor: pointer;
+}
+
+.tool-icon-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Fill the circle */
+    border-radius: 50%;
+    /* Make square images circular */
+    pointer-events: none;
+}
+
+/* Mobile Toolbar Tweaks */
+@media (max-width: 600px) {
+    #drawing-tools {
+        padding: 5px 10px;
+        gap: 8px;
+        width: 90%;
+        /* Prevent overflow */
+        max-width: 350px;
+        justify-content: space-between;
+        bottom: 15px;
+    }
+
+    .tool-group {
+        gap: 5px;
+    }
+
+    .tool-btn {
+        width: 36px;
+        height: 36px;
+    }
 }
 
 .tool-btn:hover {
@@ -543,7 +647,8 @@ canvas {
 
 /* Right: Chat */
 #chat-sidebar {
-    width: 250px;
+    width: 350px;
+    /* Increased from 250px */
     background: #fff;
     border-radius: 10px;
     display: flex;
