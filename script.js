@@ -71,6 +71,7 @@ if (!userId) {
     sessionStorage.setItem('userId', userId);
 }
 let isDrawer = false;
+let amIAdmin = false; // Track if local user is admin
 let isDrawing = false;
 let canDraw = false;
 let currentPos = { x: 0, y: 0 };
@@ -603,6 +604,16 @@ socket.on('update_players', (data) => {
     // data.players = list of players
     // data.drawerId = current drawer
     // data.state = game state
+    // data.adminUserId = id of the admin (optional, can be used to double check if I am admin)
+
+    // Store admin status locally if passed
+    if (data.adminUserId) {
+        amIAdmin = (userId === data.adminUserId);
+    } else {
+        // Fallback: Check if I am marked as admin in the players list
+        const me = data.players.find(p => p.id === myId);
+        if (me) amIAdmin = !!me.isAdmin;
+    }
 
     renderPlayers(data.players, data.drawerId, data.state);
 
@@ -783,6 +794,23 @@ socket.on('public_rooms_update', (rooms) => {
     renderPublicRooms(rooms);
 });
 
+// --- Kick Events ---
+socket.on('you_were_kicked', () => {
+    showStatus("Removed", "You were removed from the room by the admin.", 'menu', "Home");
+    // Also force disconnect logic in background if needed, but 'menu' redirect handles UI.
+    // Ensure we leave room state
+    socket.emit('leave_room');
+    showScreen('menu');
+});
+
+socket.on('player_kicked', (data) => {
+    showToast(`${data.name} was removed by the admin`, 3000);
+});
+
+socket.on('player_left', (data) => {
+    showToast(`${data.name} left the game`, 2000);
+});
+
 // --- Helpers ---
 
 function updateTimer(time) {
@@ -818,6 +846,7 @@ function renderPlayers(players, drawerId, state) {
                 <div class="name-row" style="display: flex; align-items: center; gap: 5px;">
                     <div class="player-name">${p.name} ${myId === p.id ? '(You)' : ''}</div>
                     <div class="drawer-icon">✏️</div>
+                    ${(amIAdmin && p.id !== myId) ? `<div class="kick-btn" onclick="kickPlayer('${p.id}', '${p.name}')" title="Kick Player">❌</div>` : ''}
                 </div>
                 <div class="player-score" style="font-size: 0.8rem; color: #666;">Points: ${p.score}</div>
             </div>
@@ -1190,7 +1219,19 @@ const voiceManager = {
             }
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                // strict audio constraints for quality
+                const constraints = {
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        channelCount: 1, // Mono
+                        sampleRate: 48000
+                    },
+                    video: false
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 this.localStream = stream;
 
                 // Setup Local Meter
@@ -1397,6 +1438,36 @@ const voiceManager = {
 
 // Start Voice Manager
 voiceManager.init();
+
+// --- Kick Action (Custom Modal) ---
+const kickUI = {
+    overlay: document.getElementById('kick-confirm-overlay'),
+    msg: document.getElementById('kick-confirm-msg'),
+    confirmBtn: document.getElementById('confirm-kick-btn'),
+    cancelBtn: document.getElementById('cancel-kick-btn'),
+    targetId: null
+};
+
+window.kickPlayer = function (targetId, targetName) {
+    // Show custom modal
+    kickUI.targetId = targetId;
+    kickUI.msg.textContent = `Remove ${targetName} from the room?`;
+    kickUI.overlay.classList.remove('hidden');
+};
+
+// Bind Modal Buttons
+kickUI.confirmBtn.addEventListener('click', () => {
+    if (kickUI.targetId) {
+        socket.emit('kick_player', kickUI.targetId);
+        kickUI.overlay.classList.add('hidden');
+        kickUI.targetId = null;
+    }
+});
+
+kickUI.cancelBtn.addEventListener('click', () => {
+    kickUI.overlay.classList.add('hidden');
+    kickUI.targetId = null;
+});
 
 // Hook into Socket Events
 // (Already hooked above)

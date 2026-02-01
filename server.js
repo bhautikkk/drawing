@@ -132,7 +132,8 @@ class GameRoom {
         this.isPublic = isPublic;
         this.hintsEnabled = hintsEnabled;
         this.hintsEnabled = hintsEnabled;
-        this.players = []; // Array of { id (socketId), userId, name, score, avatar, guessed, disconnected, disconnectTimer }
+        this.players = []; // Array of { id (socketId), userId, name, score, avatar, guessed, disconnected, disconnectTimer, isAdmin }
+        this.adminUserId = null; // Store persistent admin ID
         this.addPlayer(hostId, hostName, null); // userId will be set later or passed in
         this.usedWords = new Set(); // Track used words
         this.revealedIndices = new Set(); // Track revealed letters of current word
@@ -167,8 +168,20 @@ class GameRoom {
             name,
             score: 0,
             guessed: false,
-            disconnected: false
+            disconnected: false,
+            isAdmin: false // Default false
         };
+
+        // If this is the first player (host) and no admin set yet, make them admin
+        if (!this.adminUserId && this.players.length === 0) {
+            this.adminUserId = userId; // Will only work if userId is passed correctly initially, or we update it later
+        }
+
+        // If this player matches the adminUserId, give them admin power
+        if (userId && this.adminUserId && userId === this.adminUserId) {
+            newPlayer.isAdmin = true;
+        }
+
         this.players.push(newPlayer);
         return newPlayer;
     }
@@ -195,11 +208,13 @@ class GameRoom {
             name: p.name,
             score: p.score,
             guessed: p.guessed,
-            disconnected: p.disconnected
+            disconnected: p.disconnected,
+            isAdmin: !!p.isAdmin
         }));
         this.broadcast("update_players", {
             players: safePlayers,
             drawerId: this.getDrawer()?.id,
+            adminUserId: this.adminUserId, // Optional: send adminUserId if needed by client
             state: this.state
         });
     }
@@ -326,6 +341,15 @@ class GameRoom {
 
     endGame() {
         this.state = 'GAME_OVER';
+
+        // --- PUBLIC ROOM UPDATE ---
+        // Hide from public list so no new players can join
+        if (this.isPublic) {
+            this.isPublic = false;
+            broadcastPublicRooms();
+        }
+        // --------------------------
+
         const sorted = [...this.players]
             .sort((a, b) => b.score - a.score)
             .map(p => ({
@@ -500,7 +524,13 @@ io.on('connection', (socket) => {
 
             // Update host's userId
             const host = room.players[0];
-            if (host) host.userId = socket.handshake.query.userId || arguments[0].userId;
+            if (host) {
+                host.userId = socket.handshake.query.userId || arguments[0].userId;
+                // Set adminUserId explicitly now that we have the host's userId
+                room.adminUserId = host.userId;
+                host.isAdmin = true;
+                console.log(`[DEBUG] Admin set to ${host.name} (${host.userId})`);
+            }
             console.log('[DEBUG] Room object created');
 
             rooms[roomId] = room;
@@ -744,6 +774,9 @@ io.on('connection', (socket) => {
                         delete rooms[room.id];
                         if (room.isPublic) broadcastPublicRooms();
                     } else {
+                        // Notify that player left
+                        room.broadcast('player_left', { name: player.name });
+
                         // Handle game flow interruption
                         const stateBefore = room.state;
                         // Determine if they were the drawer using the index (since getDrawer relies on index)
@@ -771,6 +804,69 @@ io.on('connection', (socket) => {
             }, 10000); // 10 seconds grace period
 
             // Optional: Broadcast "Player X disconnected, waiting..." so others know
+        }
+    });
+
+    // --- Admin Kick Feature ---
+    socket.on('kick_player', (targetPlayerId) => {
+        const room = getRoom(socket);
+        if (!room) return;
+
+        // Verify Requester is Admin
+        const requester = room.players.find(p => p.id === socket.id);
+        if (!requester || !requester.isAdmin) {
+            console.log(`[SECURITY] Kick attempt by non-admin ${socket.id}`);
+            return;
+        }
+
+        // Verify Target exists in room
+        const target = room.players.find(p => p.id === targetPlayerId);
+        if (!target) return;
+
+        // Prevent self-kick (optional but good UI safety)
+        if (target.id === socket.id) return;
+
+        console.log(`[MODERATION] Admin ${requester.name} kicked ${target.name}`);
+
+        // Notify the kicked player
+        io.to(target.id).emit('you_were_kicked');
+        // Force leave room socket-wise
+        // We do this AFTER removing logically so they don't trigger "disconnect" grace logic if possible?
+        // Actually, we should trigger standard removal logic.
+
+        // Logic similar to disconnect but immediate
+        const wasDrawer = (room.getDrawer() && room.getDrawer().id === target.id);
+
+        // Remove from room data
+        const isEmpty = room.removePlayer(target.id);
+        const targetSocket = io.sockets.sockets.get(target.id);
+        if (targetSocket) {
+            targetSocket.leave(room.id);
+            targetSocket.join(LOBBY_ROOM);
+        }
+
+        // Notify room
+        room.broadcast('player_kicked', { name: target.name });
+
+        if (isEmpty) {
+            if (room.timer) clearInterval(room.timer);
+            delete rooms[room.id];
+            if (room.isPublic) broadcastPublicRooms();
+        } else {
+            // Handle Game Flow if needed
+            if (room.state !== 'LOBBY') {
+                if (room.players.length < 2) {
+                    if (room.timer) clearInterval(room.timer);
+                    delete rooms[room.id];
+                    room.broadcast("game_ended_no_players");
+                    if (room.isPublic) broadcastPublicRooms();
+                } else if (wasDrawer) {
+                    if (room.timer) clearInterval(room.timer);
+                    room.endTurn();
+                }
+            }
+            room.broadcastPlayerList();
+            if (room.isPublic) broadcastPublicRooms();
         }
     });
 

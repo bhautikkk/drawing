@@ -1260,3 +1260,47 @@ canvas {
     font-family: monospace;
     width: fit-content;
 }
+
+/* Kick Button */
+.kick-btn {
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #e74c3c;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    opacity: 0.7;
+    margin-left: 5px;
+    border: 1px solid transparent;
+}
+
+.kick-btn:hover {
+    background: rgba(231, 76, 60, 0.1);
+    opacity: 1;
+    border-color: rgba(231, 76, 60, 0.3);
+    transform: scale(1.1);
+}
+
+.kick-btn:active {
+    transform: scale(0.95);
+}
+
+@keyframes bounceIn {
+    0% {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+
+    70% {
+        transform: scale(0.9);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
