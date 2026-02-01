@@ -113,7 +113,11 @@ function init() {
     if (createRoomBtn) {
         createRoomBtn.addEventListener('click', () => {
             if (!ui.menu.username.value.trim()) {
-                showError("Please enter your name!");
+                // Visual feedback
+                ui.menu.username.focus();
+                ui.menu.username.style.borderColor = "red";
+                setTimeout(() => ui.menu.username.style.borderColor = "#e0e0e0", 2000);
+                showToast("Please enter your name!", 2000);
                 return;
             }
             creationOverlay.classList.remove('hidden');
@@ -131,7 +135,7 @@ function init() {
         const rounds = parseInt(document.getElementById('rounds-input').value);
         const maxPlayers = 10; // Default fixed to 10
         const drawTime = parseInt(document.getElementById('time-input').value);
-        const hintsEnabled = document.getElementById('hint-toggle').value === 'true';
+        const hintsEnabled = true;
 
         if (!username) {
             showError("Please enter your name!");
@@ -160,7 +164,11 @@ function init() {
         quickJoinBtn.addEventListener('click', () => {
             const username = ui.menu.username.value.trim();
             if (!username) {
-                showError("Please enter your name first!");
+                // Visual feedback
+                ui.menu.username.focus();
+                ui.menu.username.style.borderColor = "red";
+                setTimeout(() => ui.menu.username.style.borderColor = "#e0e0e0", 2000);
+                showToast("Please enter your name first!", 2000);
                 return;
             }
 
@@ -191,7 +199,15 @@ function init() {
         if (username && code) {
             socket.emit('join_room', { code, username, userId });
         } else {
-            showError("Enter name and room code!");
+            showToast("Enter name and room code!", 2000);
+            if (!username) {
+                ui.menu.username.focus();
+                ui.menu.username.style.borderColor = "red";
+                setTimeout(() => ui.menu.username.style.borderColor = "#e0e0e0", 2000);
+            }
+            if (!code) {
+                ui.menu.codeInput.focus();
+            }
         }
     });
 
@@ -333,7 +349,72 @@ function init() {
             findingOverlay.classList.add('hidden');
         }, 2000);
     });
+
+    // Public Rooms Initialization
+    console.log("[INFO] Requesting public rooms...");
+    socket.emit('get_public_rooms');
 }
+
+// --- Public Rooms Rendering ---
+function renderPublicRooms(rooms) {
+    const list = document.getElementById('public-rooms-list');
+    if (!list) return;
+
+    list.innerHTML = '';
+
+    if (!rooms || rooms.length === 0) {
+        list.innerHTML = '<div class="no-rooms-msg">No public rooms available right now.</div>';
+        return;
+    }
+
+    rooms.forEach(room => {
+        // Create card
+        const card = document.createElement('div');
+        card.className = 'room-card';
+
+        // Host Info
+        const info = document.createElement('div');
+        info.className = 'room-info';
+
+        const hostName = document.createElement('div');
+        hostName.className = 'room-host';
+        hostName.textContent = room.hostName + "'s Room";
+
+        const playerCount = document.createElement('div');
+        playerCount.className = 'room-players';
+        playerCount.textContent = `${room.playerCount} / ${room.maxPlayers} Players`;
+
+        const roomCode = document.createElement('div');
+        roomCode.className = 'room-code-tag';
+        roomCode.textContent = `Code: ${room.id}`;
+
+        info.appendChild(hostName);
+        info.appendChild(playerCount);
+        info.appendChild(roomCode);
+
+        // Join Button
+        const joinBtn = document.createElement('button');
+        joinBtn.className = 'join-room-btn';
+        joinBtn.textContent = 'Join';
+        joinBtn.onclick = () => {
+            const username = ui.menu.username.value.trim();
+            if (!username) {
+                // Visual feedback
+                ui.menu.username.focus();
+                ui.menu.username.style.borderColor = "red";
+                setTimeout(() => ui.menu.username.style.borderColor = "#e0e0e0", 2000);
+                showToast("Please enter your name first!", 2000);
+                return;
+            }
+            socket.emit('join_room', { code: room.id, username, userId });
+        };
+
+        card.appendChild(info);
+        card.appendChild(joinBtn);
+        list.appendChild(card);
+    });
+}
+
 
 let shouldRedirectToMenu = false;
 
@@ -419,6 +500,26 @@ function resizeCanvas() {
 
 function showError(msg) {
     ui.menu.error.textContent = msg;
+}
+
+// --- Toast Logic ---
+const toast = {
+    container: document.getElementById('toast-container'),
+    message: document.getElementById('toast-message'),
+    timer: null
+};
+
+function showToast(msg, duration = 2000) {
+    if (!toast.container || !toast.message) return;
+
+    toast.message.textContent = msg;
+    toast.container.classList.remove('hidden');
+
+    if (toast.timer) clearTimeout(toast.timer);
+
+    toast.timer = setTimeout(() => {
+        toast.container.classList.add('hidden');
+    }, duration);
 }
 
 function showScreen(screenName) {
@@ -675,6 +776,11 @@ socket.on('play_sound', (data) => {
 
 socket.on('game_ended_no_players', () => {
     ui.emptyRoom.overlay.classList.remove('hidden');
+});
+
+socket.on('public_rooms_update', (rooms) => {
+    console.log(`[DEBUG] Public rooms updated: ${rooms.length}`);
+    renderPublicRooms(rooms);
 });
 
 // --- Helpers ---

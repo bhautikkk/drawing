@@ -1120,3 +1120,113 @@ canvas {
     text-align: center;
     max-width: 80vw;
 }
+
+/* Public Rooms Section */
+#public-rooms-section {
+    margin-bottom: 20px;
+    margin-top: 10px;
+    text-align: left;
+}
+
+#public-rooms-list {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Scrollbar styling for room list */
+#public-rooms-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#public-rooms-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+#public-rooms-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.no-rooms-msg {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    padding: 15px;
+    font-style: italic;
+}
+
+.room-card {
+    background: white;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+    border: 2px solid transparent;
+}
+
+.room-card:hover {
+    transform: translateY(-2px);
+    border-color: #2980b9;
+}
+
+.room-info {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.room-host {
+    font-weight: bold;
+    color: #333;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.room-players {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 2px;
+}
+
+.join-room-btn {
+    background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
+    padding: 6px 14px !important;
+    font-size: 0.85rem !important;
+    width: auto !important;
+    margin: 0 !important;
+    box-shadow: 0 2px 5px rgba(39, 174, 96, 0.3) !important;
+}
+
+.join-room-btn:hover {
+    box-shadow: 0 4px 8px rgba(39, 174, 96, 0.4) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Adjust settings row to fit */
+.settings-row {
+    margin-bottom: 15px;
+}
+
+.room-code-tag {
+    font-size: 0.75rem;
+    color: #888;
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 4px;
+    font-family: monospace;
+    width: fit-content;
+}

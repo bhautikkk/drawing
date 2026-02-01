@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Draw & Guess</title>
+    <title>DrawGo</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js" defer></script>
@@ -40,7 +40,7 @@
     <!-- Main Menu -->
     <div id="main-menu" class="screen active">
         <div class="menu-content">
-            <h1>Draw & Guess</h1>
+            <h1>DrawGo</h1>
             <p>Free Multiplayer Drawing Game</p>
 
             <div class="name-section">
@@ -48,14 +48,16 @@
             </div>
 
             <div class="create-section">
-                <div class="settings-row">
-                    <div class="setting-item">
-                        <label for="hint-toggle" class="setting-label">Hints</label>
-                        <select id="hint-toggle" class="setting-input">
-                            <option value="true">On</option>
-                            <option value="false">Off</option>
-                        </select>
+                <!-- Public Rooms Section -->
+                <div id="public-rooms-section">
+                    <h3 style="margin-bottom: 10px; font-size: 1.1rem; color: #fff;">Public Rooms</h3>
+                    <div id="public-rooms-list">
+                        <!-- Room cards injected here -->
+                        <div class="no-rooms-msg">Loading public rooms...</div>
                     </div>
+                </div>
+
+                <div class="settings-row">
                     <div class="setting-item">
                         <label for="rounds-input" class="setting-label">Rounds</label>
                         <input type="number" id="rounds-input" value="5" min="1" max="10" class="setting-input"
@@ -184,6 +186,11 @@
             <button id="empty-join-btn" style="width: 100%; background: #f39c12; margin-top: 10px;">⚡ Find New
                 Game</button>
         </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="hidden">
+        <div id="toast-message"></div>
     </div>
 
     <!-- Drawing Screen -->

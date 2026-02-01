@@ -91,6 +91,7 @@ const GAME_SETTINGS = {
 
 // --- Room State Management ---
 const rooms = {};
+const LOBBY_ROOM = 'lobby'; // Socket room for users in main menu
 
 function generateRoomId() {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -99,6 +100,23 @@ function generateRoomId() {
 function getRandomWords(count = 3) {
     const shuffled = WORDS.sort(() => 0.5 - Math.random());
     return shuffled.slice(0, count);
+}
+
+function getPublicRooms() {
+    return Object.values(rooms)
+        .filter(r => r.isPublic && r.state !== 'GAME_OVER') // Optional: Filter out ended games if needed
+        .map(r => ({
+            id: r.id,
+            hostName: r.players[0]?.name || "Unknown",
+            playerCount: r.players.length,
+            maxPlayers: r.maxPlayers,
+            state: r.state
+        }));
+}
+
+function broadcastPublicRooms() {
+    const publicRooms = getPublicRooms();
+    io.to(LOBBY_ROOM).emit('public_rooms_update', publicRooms);
 }
 
 // --- Game Logic Classes ---
@@ -450,6 +468,15 @@ class GameRoom {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
+    // Join lobby by default to receive public room updates
+    socket.join(LOBBY_ROOM);
+    // Send initial list
+    socket.emit('public_rooms_update', getPublicRooms());
+
+    socket.on('get_public_rooms', () => {
+        socket.emit('public_rooms_update', getPublicRooms());
+    });
+
     socket.on('create_room', ({ hostName, maxPlayers, rounds, drawTime, isPublic, hintsEnabled }) => {
         try {
             console.log('[DEBUG] create_room request:', { hostName, maxPlayers, rounds, drawTime, isPublic, hintsEnabled });
@@ -479,10 +506,16 @@ io.on('connection', (socket) => {
             rooms[roomId] = room;
             console.log('[DEBUG] Room added to global store');
 
+            // Leave lobby when creating room
+            socket.leave(LOBBY_ROOM);
+
             socket.join(roomId);
             socket.emit('room_created', roomId);
             room.broadcastPlayerList();
             console.log('[DEBUG] Room creation successful');
+
+            if (isPublic) broadcastPublicRooms();
+
         } catch (error) {
             console.error('[CRITICAL ERROR] in create_room:', error);
             socket.emit('error', 'Server error creating room');
@@ -527,11 +560,16 @@ io.on('connection', (socket) => {
         if (room.players.length < room.maxPlayers || room.players.some(p => p.userId === userId)) {
             const isLateJoin = room.state !== 'LOBBY';
 
+            // Leave lobby when joining room
+            socket.leave(LOBBY_ROOM);
+
             room.addPlayer(socket.id, username, userId);
             socket.join(room.id);
 
             socket.emit('joined_room', room.id);
             room.broadcastPlayerList();
+
+            if (room.isPublic) broadcastPublicRooms();
 
             // Auto-start public rooms when 2nd player joins
             if (room.isPublic && room.state === 'LOBBY' && room.players.length === 2) {
@@ -662,11 +700,18 @@ io.on('connection', (socket) => {
         if (room) {
             const isEmpty = room.removePlayer(socket.id);
             socket.leave(room.id);
+
+            // Re-join lobby
+            socket.join(LOBBY_ROOM);
+            socket.emit('public_rooms_update', getPublicRooms());
+
             if (isEmpty) {
                 if (room.timer) clearInterval(room.timer);
                 delete rooms[room.id];
+                if (room.isPublic) broadcastPublicRooms();
             } else {
                 room.broadcastPlayerList();
+                if (room.isPublic) broadcastPublicRooms();
             }
         }
     });
@@ -685,11 +730,11 @@ io.on('connection', (socket) => {
                 if (player.disconnected && rooms[room.id]) { // Check if room still exists
                     console.log(`[DEBUG] Grace period over. Removing player ${player.name}.`);
 
-                    const wasDrawer = (room.getDrawer() && room.getDrawer().id === socket.id); // Old socket ID might serve as check, but better check player object equality if we tracked index
+                    const wasDrawer = (room.getDrawer() && room.getDrawer().id === socket.id);
                     // Actually, room.getDrawer() returns the player object. 
                     // Since specific player object is same ref, we can check validity.
 
-                    const isEmpty = room.removePlayer(socket.id); // This searches by socket ID. 
+                    const isEmpty = room.removePlayer(socket.id);
                     // Wait, if they reconnected, socketID changed. 
                     // But if they reconnected, `disconnected` would be false and timer cleared.
                     // So if we are here, they haven't reconnected. Socked ID in player obj matches the one that disconnected.
@@ -697,6 +742,7 @@ io.on('connection', (socket) => {
                     if (isEmpty) {
                         if (room.timer) clearInterval(room.timer);
                         delete rooms[room.id];
+                        if (room.isPublic) broadcastPublicRooms();
                     } else {
                         // Handle game flow interruption
                         const stateBefore = room.state;
@@ -710,6 +756,7 @@ io.on('connection', (socket) => {
                                 delete rooms[room.id];
                                 console.log(`[DEBUG] Room ${room.id} closed due to lack of players.`);
                                 room.broadcast("game_ended_no_players"); // Notify remaining player
+                                if (room.isPublic) broadcastPublicRooms();
                             } else if (wasDrawer) {
                                 // Logic reuse: The socket that disconnected was the drawer.
                                 // If they are gone now, we skip.
@@ -718,6 +765,7 @@ io.on('connection', (socket) => {
                             }
                         }
                         room.broadcastPlayerList();
+                        if (room.isPublic) broadcastPublicRooms();
                     }
                 }
             }, 10000); // 10 seconds grace period
