@@ -806,6 +806,7 @@ function renderPlayers(players, drawerId, state) {
     sortedPlayers.forEach((p, index) => {
         const el = document.createElement('div');
         el.className = 'player-card';
+        el.dataset.id = p.id; // Add ID for voice chat selection
         if (p.id === drawerId) el.classList.add('active-drawer');
         if (p.guessed) el.classList.add('guessed');
 
@@ -1030,17 +1031,53 @@ function showStatus(title, message, redirect = false, btnText = "OK") {
 }
 
 // --- Voice Chat Implementation ---
+// --- Voice Chat Implementation (Perfect Negotiation + Speaking Indicator) ---
+
+// SoundMeter for detecting speaking activity
+class SoundMeter {
+    constructor(context) {
+        this.context = context;
+        this.instant = 0.0;
+        this.script = context.createScriptProcessor(2048, 1, 1);
+        this.script.onaudioprocess = (event) => {
+            const input = event.inputBuffer.getChannelData(0);
+            let i;
+            let sum = 0.0;
+            for (i = 0; i < input.length; ++i) {
+                sum += input[i] * input[i];
+            }
+            this.instant = Math.sqrt(sum / input.length);
+        };
+    }
+    connectToSource(stream, callback) {
+        try {
+            this.mic = this.context.createMediaStreamSource(stream);
+            this.mic.connect(this.script);
+            this.script.connect(this.context.destination);
+            if (callback) callback(null);
+        } catch (e) {
+            console.error(e);
+            if (callback) callback(e);
+        }
+    }
+    stop() {
+        this.mic.disconnect();
+        this.script.disconnect();
+    }
+}
+
 socket.on('voice_signal', (data) => {
-    // console.log("[Voice] Signal received:", data.signal.type);
     voiceManager.handleSignal(data.senderId, data.signal);
 });
 
-
-
 const voiceManager = {
-    peers: {}, // { socketId: RTCPeerConnection }
+    peers: {}, // { socketId: { pc, makingOffer, ignoreOffer, isPolite, stream } }
     localStream: null,
     isMicOn: false,
+    audioContext: null,
+    soundMeters: {}, // { socketId: SoundMeter }
+    speakingInterval: null,
+
     config: {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
@@ -1057,6 +1094,14 @@ const voiceManager = {
         this.audioContainer.style.display = 'none';
         document.body.appendChild(this.audioContainer);
 
+        // Prep Audio Context (must happen after user interaction usually, but let's init ref)
+        try {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.audioContext = new AudioContext();
+        } catch (e) {
+            console.warn('Web Audio API not supported.');
+        }
+
         if (this.btn) {
             // Touchstart for faster mobile response
             this.btn.addEventListener('click', (e) => {
@@ -1067,6 +1112,42 @@ const voiceManager = {
                 e.preventDefault();
                 this.toggleMic();
             });
+        }
+
+        // Start speaking detection loop
+        this.speakingInterval = setInterval(() => this.detectSpeaking(), 100);
+    },
+
+    detectSpeaking() {
+        if (!this.audioContext) return;
+
+        // Check local
+        if (this.localMeter && this.isMicOn) {
+            this.updateSpeakingUI(myId, this.localMeter.instant > 0.01);
+        }
+
+        // Check remotes
+        Object.keys(this.soundMeters).forEach(id => {
+            const meter = this.soundMeters[id];
+            if (meter) {
+                // Threshold 0.01 is experimental, adjust if needed
+                this.updateSpeakingUI(id, meter.instant > 0.01);
+            }
+        });
+    },
+
+    updateSpeakingUI(id, isSpeaking) {
+        // Find player card
+        // Note: We need a way to link id to DOM. script.js renderPlayers renders cards but doesn't set ID?
+        // Wait, renderPlayers (line 806) creates divs. We need to add `data-id` to them.
+        // I will need to update renderPlayers to add dataset.id
+        const card = document.querySelector(`.player-card[data-id="${id}"]`);
+        if (card) {
+            if (isSpeaking) {
+                card.classList.add('speaking');
+            } else {
+                card.classList.remove('speaking');
+            }
         }
     },
 
@@ -1081,234 +1162,214 @@ const voiceManager = {
 
         const activeIds = new Set(players.map(p => p.id));
 
+        // Remove old peers
         Object.keys(this.peers).forEach(id => {
-            if (!activeIds.has(id)) {
+            if (id !== myId && !activeIds.has(id)) {
                 this.removePeer(id);
             }
         });
 
+        // Add new peers
         players.forEach(p => {
             if (p.id !== myId && !this.peers[p.id]) {
-                const shouldInitiate = myId < p.id;
-                this.addPeer(p.id, shouldInitiate);
+                this.addPeer(p.id);
             }
         });
     },
 
     async toggleMic() {
-        // Force reset if stream is invalid (ended or no tracks)
-        if (this.localStream && (!this.localStream.active || this.localStream.getAudioTracks().length === 0)) {
-            console.warn("[Voice] Found invalid stream, resetting.");
-            this.localStream = null;
+        // Resume Audio Context if suspended (browser auto-play policy)
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            await this.audioContext.resume();
         }
 
         if (!this.localStream) {
-            // Check for Secure Context / API availability
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                console.error("[Voice] navigator.mediaDevices not responding");
-                showStatus("Mic Error", "Microphone access is not supported in this browser or requires HTTPS. If on mobile, try using 'localhost' via USB debugging or set up HTTPS.", false, "OK");
+                showStatus("Mic Error", "Microphone access is not supported or requires HTTPS.", false, "OK");
                 return;
             }
 
-            let stream = null;
             try {
-                console.log("[Voice] Requesting Mic Permission...");
-                // Mobile best practice: simple constraints to avoid OverconstrainedError
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            } catch (err) {
-                console.error("[Voice] Mic Access Error:", err.name, err);
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                this.localStream = stream;
 
-                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                    showStatus("Permission Denied", "Microphone access was denied. Check your Browser AND System (OS) Privacy limits.", false, "OK");
-                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                    showStatus("No Mic Found", "No microphone device was found on this system.", false, "OK");
-                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-                    showStatus("Mic Unavailable", "Your microphone is busy or not readable. Check system settings or close other voice apps.", false, "OK");
-                } else if (err.name === 'OverconstrainedError') {
-                    showStatus("Mic Error", "Microphone constraints (audio/video) could not be satisfied.", false, "OK");
-                } else {
-                    showStatus("Microphone Error", `Unexpected error: ${err.name} - ${err.message}`, false, "OK");
+                // Setup Local Meter
+                if (this.audioContext) {
+                    this.localMeter = new SoundMeter(this.audioContext);
+                    this.localMeter.connectToSource(stream);
                 }
-                return; // Stop here if we couldn't get the stream
-            }
 
-            // Success!
-            this.localStream = stream;
-
-            // Attach to peers - Separate from permission logic
-            // If this fails, we still have the mic, so we don't show "Permission Denied"
-            try {
-                Object.values(this.peers).forEach(pc => {
-                    this.attachStreamToPeer(pc, stream);
+                // Add to existing peers
+                Object.values(this.peers).forEach(({ pc }) => {
+                    stream.getTracks().forEach(track => pc.addTrack(track, stream));
                 });
-            } catch (e) {
-                console.warn("[Voice] Error attaching to peers:", e);
-                // Non-critical: Mic is on, but maybe one peer failed. Don't block UI.
+
+            } catch (err) {
+                console.error("[Voice] Mic Access Error:", err);
+                showStatus("Permission Denied", "Microphone access was denied or not found.", false, "OK");
+                return;
             }
         }
 
         this.isMicOn = !this.isMicOn;
-        // Ensure track is enabled/disabled
         if (this.localStream) {
             this.localStream.getAudioTracks().forEach(track => {
                 track.enabled = this.isMicOn;
             });
         }
 
-        console.log("[Voice] Mic Toggled. State:", this.isMicOn);
         this.btn.classList.toggle('mic-on', this.isMicOn);
         this.btn.classList.toggle('mic-off', !this.isMicOn);
     },
 
-    attachStreamToPeer(pc, stream) {
-        // Robustness: Use senders/transceivers to handle renegotiation correctly
-        const audioTrack = stream.getAudioTracks()[0];
-
-        // Check if we already have a sender for audio
-        const senders = pc.getSenders();
-        const audioSender = senders.find(s => s.track && s.track.kind === 'audio') || senders.find(s => s.track === null); // Transceiver might be null track
-
-        if (audioSender) {
-            console.log("[Voice] Replacing track on existing sender");
-            audioSender.replaceTrack(audioTrack).catch(e => console.error("ReplaceTrack Error:", e));
-
-            // Ensure transceiver is sendrecv
-            const transceiver = pc.getTransceivers().find(t => t.sender === audioSender);
-            if (transceiver) {
-                transceiver.direction = 'sendrecv';
-
-                // Manual Renegotiation: We changed direction, so we MUST send a new offer
-                // Check if stable to avoid glare (simple check, imperfect but better than nothing)
-                if (pc.signalingState === 'stable') {
-                    console.log("[Voice] Negotiating new state (sending audio)...");
-
-                    // Find the targetId for this peer connection
-                    const targetId = Object.keys(this.peers).find(key => this.peers[key] === pc);
-
-                    if (targetId) {
-                        pc.createOffer()
-                            .then(offer => pc.setLocalDescription(offer))
-                            .then(() => {
-                                socket.emit('voice_signal', {
-                                    targetId: targetId,
-                                    signal: { type: 'offer', sdp: pc.localDescription }
-                                });
-                            })
-                            .catch(e => console.error("[Voice] Renegotiation Offer Error:", e));
-                    } else {
-                        console.error("[Voice] Could not find targetId for peer during renegotiation");
-                    }
-                }
-            }
-        }
-        else {
-            console.log("[Voice] Adding new track");
-            // If no sender, just addTrack (triggers negotiation)
-            pc.addTrack(audioTrack, stream);
-        }
-    },
-
-    addPeer(targetId, initiator) {
-        console.log(`[Voice] Adding peer ${targetId} (Initiator: ${initiator})`);
+    addPeer(targetId) {
+        const isPolite = myId < targetId; // Deterministic politeness
         const pc = new RTCPeerConnection(this.config);
-        this.peers[targetId] = pc;
 
-        // Debug: Log Connection States
-        pc.oniceconnectionstatechange = () => console.log(`[Voice] ICE State (${targetId}): ${pc.iceConnectionState}`);
+        const peerObj = {
+            pc,
+            makingOffer: false,
+            ignoreOffer: false,
+            isPolite
+        };
+        this.peers[targetId] = peerObj;
 
-        // Prepare to receive audio
-        pc.addTransceiver('audio', { direction: 'recvonly' });
-
-        pc.onicecandidate = (event) => {
-            if (event.candidate) {
+        // Handle ICE
+        pc.onicecandidate = ({ candidate }) => {
+            if (candidate) {
                 socket.emit('voice_signal', {
                     targetId: targetId,
-                    signal: { type: 'candidate', candidate: event.candidate }
+                    signal: { type: 'candidate', candidate }
                 });
             }
         };
 
-        pc.ontrack = (event) => {
-            console.log(`[Voice] Received track from ${targetId}`, event.streams);
-
-            const audio = document.createElement('audio');
-            // Robustness: Construct stream if missing (common with replaceTrack)
-            audio.srcObject = event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
-            audio.autoplay = true;
-            audio.playsInline = true;
-            // audio.controls = true; // Comment out for production polish (or remove)
-            audio.volume = 1.0;
-
-            this.audioContainer.appendChild(audio); // Append to DOM
-
-            // Explicit play attempt with logging
-            audio.play()
-                .then(() => console.log(`[Voice] Playing audio from ${targetId}`))
-                .catch(e => console.error(`[Voice] Audio play failed for ${targetId}:`, e));
-        };
-
-        // Attach local stream if already exists (rejoining/late join)
-        if (this.localStream) {
-            this.attachStreamToPeer(pc, this.localStream);
-        }
-
-        if (initiator) {
-            pc.createOffer()
-                .then(offer => pc.setLocalDescription(offer))
-                .then(() => {
-                    socket.emit('voice_signal', {
-                        targetId: targetId,
-                        signal: { type: 'offer', sdp: pc.localDescription }
-                    });
-                })
-                .catch(e => console.error("[Voice] Offer Error:", e));
-        }
-    },
-
-    async handleSignal(senderId, signal) {
-        if (!this.peers[senderId]) {
-            if (signal.type === 'offer') {
-                this.addPeer(senderId, false);
-            } else {
-                return;
-            }
-        }
-
-        const pc = this.peers[senderId];
-
-        try {
-            if (signal.type === 'candidate') {
-                if (signal.candidate) {
-                    await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-                }
-            } else if (signal.type === 'offer') {
-                if (pc.signalingState !== "stable") {
-                    await Promise.all([
-                        pc.setLocalDescription({ type: "rollback" }),
-                        pc.setRemoteDescription(new RTCSessionDescription(signal.sdp))
-                    ]);
-                } else {
-                    await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-                }
-
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
+        // Handle Negotiation Needed
+        pc.onnegotiationneeded = async () => {
+            try {
+                peerObj.makingOffer = true;
+                await pc.setLocalDescription();
                 socket.emit('voice_signal', {
-                    targetId: senderId,
-                    signal: { type: 'answer', sdp: pc.localDescription }
+                    targetId: targetId,
+                    signal: { type: 'description', description: pc.localDescription }
                 });
-            } else if (signal.type === 'answer') {
-                await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            } catch (err) {
+                console.error(err);
+            } finally {
+                peerObj.makingOffer = false;
             }
-        } catch (err) {
-            console.error("[Voice] Signal Error:", err);
+        };
+
+        // Handle Tracks
+        pc.ontrack = ({ track, streams }) => {
+            console.log(`[Voice] Track received from ${targetId}`);
+
+            const playAudio = () => {
+                if (this.audioContainer) {
+                    let audio = document.getElementById(`audio-${targetId}`);
+                    if (!audio) {
+                        audio = document.createElement('audio');
+                        audio.id = `audio-${targetId}`;
+                        audio.autoplay = true;
+                        this.audioContainer.appendChild(audio);
+                    }
+                    if (streams[0]) {
+                        audio.srcObject = streams[0];
+                        // Init SoundMeter for this remote stream
+                        if (this.audioContext) {
+                            const meter = new SoundMeter(this.audioContext);
+                            meter.connectToSource(streams[0]);
+                            this.soundMeters[targetId] = meter;
+                        }
+                    }
+                    audio.play().catch(e => console.warn("Auto-play failed", e));
+                }
+            };
+
+            track.onunmute = () => {
+                console.log(`[Voice] Track unmuted from ${targetId}`);
+                playAudio();
+            };
+
+            // Trigger immediately if already ready (not muted)
+            if (!track.muted) {
+                playAudio();
+            }
+        };
+
+        // If we have a local stream, add it
+        if (this.localStream) {
+            this.localStream.getTracks().forEach(track => pc.addTrack(track, this.localStream));
         }
     },
 
     removePeer(id) {
         if (this.peers[id]) {
-            this.peers[id].close();
+            this.peers[id].pc.close();
             delete this.peers[id];
+        }
+        if (this.soundMeters[id]) {
+            this.soundMeters[id].stop();
+            delete this.soundMeters[id];
+        }
+        const audio = document.getElementById(`audio-${id}`);
+        if (audio) audio.remove();
+    },
+
+    async handleSignal(senderId, signal) {
+        const peer = this.peers[senderId];
+        // If peer doesn't exist yet, we receive an offer, we must add it
+        if (!peer) {
+            // Only accept offers from unknown peers (we shouldn't receive answers/chances from unknown)
+            // But in Perfect Negotiation, we check if we need to be polite or not.
+            // If we are polite, we might need to create the peer to accept the offer.
+            // Actually, `activeIds` in updatePeers should have already created the peer if the player joined.
+            // But signals might arrive before `update_players` event. 
+            // So we lazily create peer if data comes.
+            this.addPeer(senderId); // Deterministic init
+            return this.handleSignal(senderId, signal); // Re-run
+        }
+
+        const { pc, isPolite } = peer;
+
+        try {
+            if (signal.type === 'candidate') {
+                // ICE Candidate
+                try {
+                    await pc.addIceCandidate(signal.candidate);
+                } catch (err) {
+                    if (!peer.ignoreOffer) throw err; // Suppress ignore errors
+                }
+            } else if (signal.type === 'description') {
+                const description = signal.description;
+
+                // Collision logic
+                const offerCollision = (description.type === 'offer') &&
+                    (peer.makingOffer || pc.signalingState !== 'stable');
+
+                peer.ignoreOffer = !isPolite && offerCollision;
+                if (peer.ignoreOffer) {
+                    console.log(`[Voice] Glare detected. Ignoring offer from ${senderId} (Impolite)`);
+                    return;
+                }
+
+                if (offerCollision) {
+                    console.log(`[Voice] Glare detected. Rolling back for ${senderId} (Polite)`);
+                    await pc.setLocalDescription({ type: 'rollback' }); // Polite rollback
+                }
+
+                await pc.setRemoteDescription(description);
+
+                if (description.type === 'offer') {
+                    await pc.setLocalDescription();
+                    socket.emit('voice_signal', {
+                        targetId: senderId,
+                        signal: { type: 'description', description: pc.localDescription }
+                    });
+                }
+            }
+        } catch (err) {
+            console.error(err);
         }
     },
 
@@ -1323,9 +1384,14 @@ const voiceManager = {
             this.btn.classList.remove('mic-on');
             this.btn.classList.add('mic-off');
         }
-        if (this.audioContainer) {
-            this.audioContainer.innerHTML = '';
+        if (this.localMeter) {
+            this.localMeter.stop();
+            this.localMeter = null;
         }
+        if (this.audioContext) {
+            // this.audioContext.close(); // Keep it open for re-joins?
+        }
+        clearInterval(this.speakingInterval);
     }
 };
 
@@ -1333,6 +1399,4 @@ const voiceManager = {
 voiceManager.init();
 
 // Hook into Socket Events
-socket.on('voice_signal', (data) => {
-    voiceManager.handleSignal(data.senderId, data.signal);
-});
+// (Already hooked above)

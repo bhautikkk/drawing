@@ -129,6 +129,7 @@ body.game-active {
 h1 {
     font-family: 'Fredoka One', cursive;
     background: linear-gradient(45deg, #4b6cb7, #182848);
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-size: 3.5rem;
@@ -445,6 +446,35 @@ button:hover::after {
 .active-drawer .drawer-icon {
     display: inline-block;
     animation: bounce 1s infinite;
+}
+
+/* Speaking Indicator */
+.player-card.speaking {
+    border-color: #2ecc71;
+    /* Green border */
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+    background-color: #eafaf1;
+    /* Light green bg */
+}
+
+/* Add a speaker icon when speaking? */
+.player-card.speaking .name-row::after {
+    content: '🔊';
+    margin-left: 5px;
+    font-size: 1rem;
+    animation: pulseSpeaker 0.5s infinite alternate;
+}
+
+@keyframes pulseSpeaker {
+    from {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1.1);
+    }
 }
 
 @keyframes bounce {
