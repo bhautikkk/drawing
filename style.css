@@ -62,11 +62,70 @@ body.game-active {
 }
 
 /* Main Menu & Lobby Styles (Redesigned) */
-#main-menu,
 #lobby-screen {
     align-items: center;
     justify-content: center;
     color: white;
+}
+
+#main-menu {
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    color: white;
+    overflow-y: auto;
+}
+
+.legal-footer {
+    margin-top: 25px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    font-size: 0.85rem;
+}
+
+.legal-footer a {
+    color: #fff;
+    text-decoration: none;
+    margin: 0 10px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.legal-footer a:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.about-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #333;
+    width: 90%;
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    text-align: left;
+    line-height: 1.6;
+    flex-shrink: 0;
+}
+
+.about-card h2 {
+    color: #4b6cb7;
+    margin-bottom: 15px;
+    font-family: 'Fredoka One', cursive;
+    text-shadow: none;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    display: inline-block;
+}
+
+.about-card p {
+    margin-bottom: 15px;
 }
 
 .menu-content,
@@ -83,6 +142,8 @@ body.game-active {
     border: 1px solid rgba(255, 255, 255, 0.6);
     position: relative;
     overflow: hidden;
+    flex-shrink: 0;
+    /* Important: Prevent shrinking when adding content below */
 }
 
 /* Continuous Shine Animation */

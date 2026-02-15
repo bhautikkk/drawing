@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://drawing-rab6.onrender.com/sitemap.xml
